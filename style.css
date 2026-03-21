@@ -26,7 +26,6 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 #login-btn { 
     background: white; color: black; font-weight: bold; 
     display: flex; align-items: center; justify-content: center; gap: 10px; margin: 50px auto; width: 80%;
-    cursor: pointer;
 }
 
 input, button {
