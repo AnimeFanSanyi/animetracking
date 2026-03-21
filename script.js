@@ -50,7 +50,7 @@ async function sync() {
     render();
 }
 
-// --- SMART IMPORT (Fixes the 263 vs 261 issue) ---
+// --- IMPORT ---
 window.importFile = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -61,11 +61,8 @@ window.importFile = (event) => {
         lines.forEach(line => {
             const name = line.trim();
             if (!name) return;
-            
-            // Check both lists case-insensitively
             const exists = userData.toWatch.some(i => i.toLowerCase() === name.toLowerCase()) || 
                            userData.watched.some(i => i.name.toLowerCase() === name.toLowerCase());
-            
             if (!exists) {
                 userData.toWatch.push(name);
                 addedCount++;
@@ -77,13 +74,31 @@ window.importFile = (event) => {
     reader.readAsText(file);
 };
 
-// --- WIPE FUNCTION (With 3 Alerts) ---
+// --- EXPORT ---
+window.exportFile = () => {
+    const allAnime = [
+        ...userData.toWatch,
+        ...userData.watched.map(a => a.name)
+    ];
+    if (allAnime.length === 0) return alert("Empty list!");
+    const content = allAnime.join('\n');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Nebula_Anime_Backup_${new Date().toLocaleDateString()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+};
+
+// --- WIPE ---
 window.clearCurrentList = () => {
     const listName = currentTab === 'toWatch' ? 'To Watch' : 'Watched';
     if (!confirm(`WARNING 1: Delete everything in ${listName}?`)) return;
-    if (!confirm(`WARNING 2: This wipes ${listName === 'To Watch' ? userData.toWatch.length : userData.watched.length} items. Sure?`)) return;
-    if (!confirm(`FINAL WARNING: This cannot be undone. Nuke it?`)) return;
-
+    if (!confirm(`WARNING 2: This wipes items. Sure?`)) return;
+    if (!confirm(`FINAL WARNING: This cannot be undone.`)) return;
     if (currentTab === 'toWatch') userData.toWatch = [];
     else userData.watched = [];
     sync();
