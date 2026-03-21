@@ -86,7 +86,7 @@ window.exportFile = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Nebula_Anime_Backup_${new Date().toLocaleDateString()}.txt`;
+    a.download = `Anime_Tracker_Backup_${new Date().toLocaleDateString()}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
