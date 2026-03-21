@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="script.js"></script>
+    <title>Nebula Anime Tracker</title>
+</head>
+<body>
+    <div id="auth-container" class="container">
+        <h1>Nebula Anime</h1>
+        <p>Login to sync your list across devices</p>
+        <button id="login-btn">Sign in with Google</button>
+    </div>
+
+    <div id="app-container" class="container" style="display:none;">
+        <header>
+            <span id="user-display">Welcome, <span id="username-text">User</span></span>
+            <button id="logout-btn">Logout</button>
+        </header>
+
+        <button class="btn-random" onclick="pickRandom()">🎲 PICK RANDOM ANIME</button>
+        
+        <div class="input-group">
+            <input type="text" id="searchInput" placeholder="Search or add anime..." onkeyup="handleSearch()">
+            <button class="btn-add" onclick="addAnime()">+ Add</button>
+        </div>
+
+        <div class="import-section">
+            <button class="btn-import" onclick="document.getElementById('fileInput').click()">📁 Import TXT/CSV</button>
+            <input type="file" id="fileInput" style="display:none" accept=".txt,.csv" onchange="importFile(event)">
+        </div>
+
+        <div class="tabs">
+            <div id="tabToWatch" class="tab active" onclick="switchTab('toWatch')">To Watch (<span id="countTW">0</span>)</div>
+            <div id="tabWatched" class="tab" onclick="switchTab('watched')">Watched (<span id="countW">0</span>)</div>
+        </div>
+
+        <div id="listContainer"></div>
+    </div>
+
+    <div id="overlay">
+        <div class="overlay-content">
+            <div style="color: #a78bfa; margin-bottom: 10px;">Your next mission:</div>
+            <div id="random-result"></div>
+            <button onclick="moveToWatchedFromRandom()" style="background: #22c55e;">Mark as Watched</button>
+            <button onclick="closeOverlay()" style="background: #312e81; color: white;">Skip</button>
+        </div>
+    </div>
+</body>
+</html>
