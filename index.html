@@ -31,8 +31,11 @@
             <button class="btn-add" onclick="addAnime()">+ Add</button>
         </div>
 
-        <div class="import-section">
-            <button class="btn-import" onclick="document.getElementById('fileInput').click()">📁 Import TXT/CSV</button>
+        <div class="import-export-section">
+            <div class="btn-row">
+                <button class="btn-secondary" onclick="document.getElementById('fileInput').click()">📁 Import</button>
+                <button class="btn-secondary" onclick="exportFile()">💾 Export</button>
+            </div>
             <input type="file" id="fileInput" style="display:none" accept=".txt,.csv" onchange="importFile(event)">
         </div>
 
