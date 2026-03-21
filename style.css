@@ -45,6 +45,22 @@ input { background: rgba(255, 255, 255, 0.05); color: white; border: 1px solid v
     color: white; font-weight: bold; font-size: 18px; box-shadow: 0 0 20px rgba(167, 139, 250, 0.3);
 }
 
+/* Új gomb elrendezés */
+.btn-row {
+    display: flex;
+    gap: 10px;
+    margin: 8px 0;
+}
+
+.btn-secondary {
+    flex: 1;
+    background: rgba(167, 139, 250, 0.1);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    font-size: 14px;
+    padding: 10px;
+}
+
 .tabs { display: flex; gap: 10px; margin: 20px 0 10px 0; }
 .tab { flex: 1; background: #0f172a; color: #94a3b8; padding: 12px; text-align: center; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
 .tab.active { background: var(--card); color: var(--accent); border: 1px solid var(--accent); }
@@ -61,7 +77,6 @@ input { background: rgba(255, 255, 255, 0.05); color: white; border: 1px solid v
 
 #random-result { font-size: 32px; font-weight: bold; text-align: center; margin: 20px 0; text-shadow: 0 0 15px var(--accent); }
 
-/* NEW: Clear Button Styling */
 .btn-clear {
     background: transparent;
     color: var(--danger);
