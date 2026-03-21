@@ -23,9 +23,13 @@ h1 { text-align: center; color: var(--accent); letter-spacing: 2px; text-transfo
 
 header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 14px; opacity: 0.8; }
 
-#login-btn { 
-    background: white; color: black; font-weight: bold; 
-    display: flex; align-items: center; justify-content: center; gap: 10px; margin: 50px auto; width: 80%;
+#login-btn {
+    background: linear-gradient(45deg, #a78bfa, #7c3aed);
+    color: white;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
 }
 
 input, button {
