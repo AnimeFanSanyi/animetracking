@@ -3,7 +3,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signO
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCq7skNHlN6mF45b-TjqNyJJ-OBwGu5YBs",
+  apiKey: "AQ.Ab8RN6IAOVHW5MAwZS4d4hlrJUXUF1DasERw8yWqVq4Q4Cp4mg",
   authDomain: "animetracker-171ba.firebaseapp.com",
   projectId: "animetracker-171ba",
   storageBucket: "animetracker-171ba.firebasestorage.app",
