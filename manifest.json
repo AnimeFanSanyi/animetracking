@@ -1,6 +1,7 @@
 {
   "name": "Nebula Anime Tracker",
   "short_name": "Nebula",
+  "description": "Personal Anime Tracking App",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#020617",
@@ -9,7 +10,8 @@
     {
       "src": "https://cdn-icons-png.flaticon.com/512/3504/3504746.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
