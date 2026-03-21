@@ -3,7 +3,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyCq7skNHlN6mF45b-TjqNyJJ-OBwGu5YBs",
@@ -13,7 +12,6 @@ const firebaseConfig = {
   messagingSenderId: "1083378734621",
   appId: "1:1083378734621:web:531e2c1cab0c4ed1e918f4"
 };
-
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -29,17 +27,14 @@ let lastPickedIndex = -1;
 
 // --- AUTHENTICATION LOGIC ---
 
-// Login Function
 document.getElementById('login-btn').onclick = () => {
     signInWithPopup(auth, provider).catch(error => alert("Login failed: " + error.message));
 };
 
-// Logout Function
 document.getElementById('logout-btn').onclick = () => {
     signOut(auth).then(() => location.reload());
 };
 
-// Monitor Auth State
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
@@ -112,6 +107,31 @@ window.importFile = (event) => {
         alert("Import Complete!");
     };
     reader.readAsText(file);
+};
+
+// --- NEW: THE WIPE LIST GAUNTLET ---
+
+window.clearCurrentList = () => {
+    const targetList = currentTab === 'toWatch' ? userData.toWatch : userData.watched;
+    const listName = currentTab === 'toWatch' ? 'To Watch' : 'Watched';
+
+    if (targetList.length === 0) {
+        return alert(`Your ${listName} list is already empty!`);
+    }
+
+    // The 3 Alerts
+    if (!confirm(`WARNING 1: Are you sure you want to delete ALL entries in your ${listName} list?`)) return;
+    if (!confirm(`WARNING 2: Are you REALLY sure? This will wipe ${targetList.length} animes and cannot be undone.`)) return;
+    if (!confirm(`FINAL WARNING: Click OK to nuke the ${listName} list forever.`)) return;
+
+    // If they clicked OK 3 times, execute the wipe
+    if (currentTab === 'toWatch') {
+        userData.toWatch = [];
+    } else {
+        userData.watched = [];
+    }
+    
+    sync();
 };
 
 // --- RANDOMIZER LOGIC ---
