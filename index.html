@@ -24,28 +24,20 @@
             <button id="logout-btn">Logout</button>
         </header>
 
-        <button id="btn-random-main" class="btn-random" onclick="pickRandom()">🎲 PICK RANDOM ANIME</button>
+        <button class="btn-random" onclick="pickRandom()">🎲 PICK RANDOM ANIME</button>
         
         <div class="input-group">
-            <input type="text" id="searchInput" placeholder="Search or add anime..." onkeyup="handleSearch()">
-            <button id="btn-add-main" class="btn-add" onclick="addAnime()">+ Add</button>
-        </div>
-
-        <div id="import-export-section" class="import-export-section">
-            <div class="btn-row">
-                <button class="btn-secondary" onclick="document.getElementById('fileInput').click()">📁 Import</button>
-                <button class="btn-secondary" onclick="exportFile()">💾 Export</button>
-            </div>
-            <input type="file" id="fileInput" style="display:none" accept=".txt,.csv" onchange="importFile(event)">
+            <input type="text" id="searchInput" placeholder="Keresés, vagy új hozzáadása...">
+            <button onclick="addAnime()">Add</button>
         </div>
 
         <div class="tabs">
             <div id="tabToWatch" class="tab active" onclick="switchTab('toWatch')">To Watch (<span id="countTW">0</span>)</div>
             <div id="tabWatched" class="tab" onclick="switchTab('watched')">Watched (<span id="countW">0</span>)</div>
-            <div id="tabLibrary" class="tab" onclick="switchTab('library')">Library</div>
+            <div id="tabArchive" class="tab" onclick="switchTab('archive')">Archive (<span id="countA">0</span>)</div>
         </div>
 
-        <button id="btn-clear-main" class="btn-clear" onclick="clearCurrentList()">🗑️ Wipe Current List</button>
+        <button class="btn-clear" onclick="clearCurrentList()">🗑️ Wipe Current List</button>
 
         <div id="listContainer"></div>
     </div>
@@ -65,31 +57,92 @@
             <button onclick="editItemPrompt()" style="background: var(--accent-dark);">✏️ Szerkesztés</button>
             <button id="move-btn" onclick="moveListItem()" style="background: #0ea5e9;">🔄 Áthelyezés</button>
             <button onclick="confirmDelete()" style="background: var(--danger);">🗑️ Törlés</button>
-            <button onclick="closeOptions()" style="background: transparent; border: 1px solid #475569; margin-top: 15px;">Mégse</button>
+            <button onclick="closeOptions()" style="background: transparent; border: 1px solid #475569;">Mégse</button>
         </div>
     </div>
 
-    <div id="add-node-modal" class="modal">
+    <div id="custom-prompt-modal" class="modal">
         <div class="modal-content">
-            <h3 style="color: var(--accent); margin-top: 0;">Új elem hozzáadása</h3>
-            <p id="add-node-subtitle" style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px;">Ide: Gyökérkönyvtár</p>
-            
-            <select id="node-type-select" style="width: 100%; padding: 10px; margin-bottom: 10px; background: rgba(255, 255, 255, 0.05); color: white; border: 1px solid var(--accent); border-radius: 8px;">
-                <option value="Anime">Anime (Fő)</option>
-                <option value="Manga">Manga (Fő)</option>
-                <option value="Season">Season</option>
-                <option value="Arc">Arc</option>
-                <option value="Cour">Cour</option>
-                <option value="Episode">Episode</option>
-                <option value="Movie">Movie</option>
-                <option value="OVA">OVA</option>
-            </select>
-            
-            <input type="text" id="node-name-input" placeholder="Elem neve (pl. Season 1, Naruto...)" style="margin-bottom: 15px;">
-            
-            <button onclick="confirmAddNode()" style="background: var(--success);">✔️ Hozzáadás</button>
-            <button onclick="closeAddNodeModal()" style="background: transparent; border: 1px solid #475569; margin-top: 5px;">Mégse</button>
+            <h3 id="custom-prompt-title" style="margin-top: 0; color: var(--text);">Érték megadása</h3>
+            <input type="text" id="custom-prompt-input" style="width: 100%; margin-bottom: 15px;" autocomplete="off">
+            <div style="display: flex; gap: 10px;">
+                <button id="custom-prompt-btn" style="background: var(--accent-dark); flex: 1;">OK</button>
+                <button onclick="closeCustomPrompt()" style="background: transparent; border: 1px solid #475569; flex: 1;">Mégse</button>
+            </div>
         </div>
     </div>
+
+    <div id="delete-modal" class="modal">
+        <div class="modal-content" style="text-align: center;">
+            <h3 style="color: var(--danger); margin-top: 0;">Törlés megerősítése</h3>
+            <p id="delete-msg" style="margin-bottom: 20px;">Biztosan törölni akarod?</p>
+            <div style="display: flex; gap: 10px;">
+                <button id="btn-confirm-delete" style="background: var(--danger); flex: 1;" onclick="processDeleteStep()">Törlés</button>
+                <button onclick="cancelDelete()" style="background: transparent; border: 1px solid #475569; flex: 1;">Mégse</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="archive-modal" class="modal">
+        <div class="modal-content" style="max-width: 450px; width: 95%; max-height: 85vh; overflow-y: auto;">
+            <h2 id="archive-modal-title" style="margin-top:0; color: var(--accent);">Új Archív Elem</h2>
+            
+            <div class="tabs" style="margin-top:0; margin-bottom: 15px;">
+                <div id="archTab1" class="tab active" onclick="switchArchTab(1)">Alapadatok</div>
+                <div id="archTab2" class="tab" onclick="switchArchTab(2)">Hierarchia</div>
+            </div>
+
+            <div id="arch-tab1-content">
+                <input type="text" id="arch-name" placeholder="Főcím (pl. Naruto)..." style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--accent); background: rgba(0,0,0,0.3); color: white; margin-bottom: 10px;">
+                <select id="arch-type" class="custom-select">
+                    <option value="Anime">#Anime</option>
+                    <option value="Manga">#Manga</option>
+                    <option value="StandaloneMovie">#StandaloneMovie</option>
+                </select>
+
+                <hr style="border-color: rgba(167, 139, 250, 0.2); margin: 15px 0;">
+                
+                <h4 class="section-title">Manga</h4>
+                <div id="arch-manga-list" class="sub-item-list"></div>
+                <button class="btn-secondary" onclick="openSubItemPrompt('manga')">+ Manga hozzáadása</button>
+
+                <h4 class="section-title">OVA</h4>
+                <div id="arch-ova-list" class="sub-item-list"></div>
+                <button class="btn-secondary" onclick="openSubItemPrompt('ova')">+ OVA hozzáadása</button>
+
+                <h4 class="section-title">Movie</h4>
+                <div id="arch-movie-list" class="sub-item-list"></div>
+                <button class="btn-secondary" onclick="openSubItemPrompt('movie')">+ Movie hozzáadása</button>
+            </div>
+
+            <div id="arch-tab2-content" style="display:none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(167,139,250,0.3); padding-bottom: 10px; margin-bottom: 15px;">
+                    <span style="color: var(--accent); font-weight: bold;">Struktúra (Fa-nézet)</span>
+                    <button onclick="openTreeNodeSelector('')" style="background: var(--accent-dark); padding: 5px 10px; font-size: 14px; margin:0; width: auto;">+ Fő elem</button>
+                </div>
+                <div id="tree-container"></div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:25px;">
+                <button onclick="saveArchiveItem()" style="background: var(--success); flex:1;">💾 Mentés</button>
+                <button onclick="closeArchiveModal()" style="background: transparent; border: 1px solid #475569; flex:1;">Mégse</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="tree-node-selector-modal" class="modal" style="z-index: 300;">
+        <div class="modal-content" style="max-width: 300px; text-align: center;">
+            <h4 style="margin-top: 0; color: var(--accent);">Új elem típusa:</h4>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button onclick="addTreeNode('Season')" style="background: #312e81;">Season</button>
+                <button onclick="addTreeNode('Part')" style="background: #312e81;">Part</button>
+                <button onclick="addTreeNode('Arc')" style="background: #312e81;">Arc</button>
+                <button onclick="addTreeNode('Cour')" style="background: #312e81;">Cour</button>
+                <button onclick="addTreeNode('Episodes')" style="background: #059669;">Episodes (Levél)</button>
+            </div>
+            <button onclick="closeTreeNodeSelector()" style="background: transparent; border: 1px solid #475569; margin-top: 15px;">Mégse</button>
+        </div>
+    </div>
+
 </body>
 </html>
