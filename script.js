@@ -140,8 +140,9 @@ document.getElementById('searchInput').addEventListener('input', function () {
 });
 
 document.getElementById('searchInput').addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') addAnime();
-    else render(); 
+    if (e.key === 'Enter') {
+        e.preventDefault(); 
+    }
 });
 
 window.clearCurrentList = () => {
