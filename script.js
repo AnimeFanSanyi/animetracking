@@ -102,30 +102,42 @@ document.getElementById('custom-prompt-btn').onclick = () => {
 // --- ALAP FUNKCIÓK (To Watch / Watched) ---
 window.addAnime = () => {
     if (currentTab === 'archive') {
-        openArchiveModal(); // Archívumban új ablakot nyit
+        openArchiveModal(); // Archívumban megmarad a régi működés
         return;
     }
 
-    const input = document.getElementById('searchInput');
-    const val = input.value.trim();
-    if (!val) return;
-    
-    const isDup = userData.toWatch.some(i => i.toLowerCase() === val.toLowerCase()) || 
-                  userData.watched.some(i => i.name.toLowerCase() === val.toLowerCase());
-    
-    if (isDup) {
-        openCustomPrompt("Hiba", "Ez már szerepel valamelyik listádban!", () => {}); 
-        return;
-    }
-    
-    if (currentTab === 'toWatch') {
-        userData.toWatch.unshift(val);
-    } else {
-        userData.watched.unshift({ name: val, time: new Date().toLocaleString() });
-    }
-    input.value = '';
-    sync();
+    // Bekérjük az új anime nevét a saját promptoddal
+    openCustomPrompt("Új anime hozzáadása:", "", (val) => {
+        if (!val || val.trim() === '') return;
+        const finalVal = val.trim();
+        
+        const isDup = userData.toWatch.some(i => i.toLowerCase() === finalVal.toLowerCase()) || 
+                      userData.watched.some(i => i.name.toLowerCase() === finalVal.toLowerCase());
+        
+        if (isDup) {
+            // Egy pici késleltetés kell, hogy az előző modal bezáródási animációja ne ütközzön a hibajelzéssel
+            setTimeout(() => {
+                openCustomPrompt("Hiba", "Ez már szerepel valamelyik listádban!", () => {}); 
+            }, 50);
+            return;
+        }
+        
+        if (currentTab === 'toWatch') {
+            userData.toWatch.unshift(finalVal);
+        } else {
+            userData.watched.unshift({ name: finalVal, time: new Date().toLocaleString() });
+        }
+        
+        // Keresőmező ürítése (opcionális), hogy lásd az újonnan hozzáadott elemet
+        document.getElementById('searchInput').value = ''; 
+        sync();
+    });
 };
+
+// Real-time keresés: minden egyes karakter beírásakor/törlésekor azonnal szűr
+document.getElementById('searchInput').addEventListener('input', function () {
+    render(); 
+});
 
 document.getElementById('searchInput').addEventListener('keypress', function (e) {
     if (e.key === 'Enter') addAnime();
