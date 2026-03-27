@@ -1,7 +1,9 @@
 :root {
     --bg: #020617;
+    --bg-alt: #0f172a; /* Egy kicsit világosabb sötétkék */
     --card: #1e1b4b;
     --text: #f8fafc;
+    --text-muted: #94a3b8;
     --accent: #a78bfa;
     --accent-dark: #7c3aed;
     --danger: #f43f5e;
@@ -14,14 +16,66 @@ body {
     color: var(--text);
     margin: 0;
     min-height: 100vh;
-    padding: 20px;
+    padding: 10px; /* Kicsit kisebb padding mobilon */
 }
 
-.container { max-width: 500px; margin: 0 auto; padding-top: 20px; }
+.container { max-width: 500px; margin: 0 auto; padding-top: 10px; }
 
-h1 { text-align: center; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
+h1 { text-align: center; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px;}
 
-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 14px; opacity: 0.8; }
+/* --- PRÉMIUM FEJLÉC STÍLUSOK --- */
+.main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(30, 27, 75, 0.6); /* --card áttetszően */
+    padding: 12px 18px;
+    border-radius: 16px;
+    border: 1px solid rgba(167, 139, 250, 0.15); /* Halvány accent keret */
+    backdrop-filter: blur(10px);
+    margin-bottom: 5px; /* Csak egy kis hely az elválasztóig */
+}
+
+#user-display {
+    color: var(--text-muted);
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 10px;
+}
+
+#username-text {
+    color: var(--accent); /* Kiemelt lila név */
+    font-weight: bold;
+}
+
+#logout-btn {
+    width: auto; /* Ne legyen teljes szélességű */
+    padding: 8px 16px;
+    margin: 0;
+    font-size: 13px;
+    background: rgba(167, 139, 250, 0.05); /* Nagyon halvány lila háttér */
+    color: var(--accent); /* Lila szöveg */
+    border: 1px solid rgba(167, 139, 250, 0.3); /* Halvány lila keret */
+    border-radius: 10px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+#logout-btn:hover {
+    background: rgba(167, 139, 250, 0.15);
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(167, 139, 250, 0.2);
+}
+
+/* ESZTÉTIKUS ELVÁLASZTÓ VONAL */
+.header-separator {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(167, 139, 250, 0.2) 50%, transparent 100%);
+    margin-bottom: 25px; /* Hely a separator és a tartalom között */
+}
+/* --------------------------------- */
 
 #login-btn { 
     background: linear-gradient(45deg, var(--accent), var(--accent-dark));
@@ -47,6 +101,7 @@ input { background: rgba(255, 255, 255, 0.05); color: white; border: 1px solid v
 .btn-random {
     background: linear-gradient(45deg, var(--accent), var(--accent-dark));
     color: white; font-weight: bold; font-size: 18px; box-shadow: 0 0 20px rgba(167, 139, 250, 0.3);
+    margin-bottom: 20px;
 }
 
 .btn-row { display: flex; gap: 10px; margin: 8px 0; }
@@ -56,7 +111,7 @@ input { background: rgba(255, 255, 255, 0.05); color: white; border: 1px solid v
 }
 
 .tabs { display: flex; gap: 10px; margin: 20px 0 10px 0; }
-.tab { flex: 1; background: #0f172a; color: #94a3b8; padding: 12px; text-align: center; border-radius: 8px; cursor: pointer; border: 1px solid transparent; transition: 0.2s; }
+.tab { flex: 1; background: var(--bg-alt); color: var(--text-muted); padding: 12px; text-align: center; border-radius: 8px; cursor: pointer; border: 1px solid transparent; transition: 0.2s; }
 .tab.active { background: var(--card); color: var(--accent); border: 1px solid var(--accent); font-weight: bold; }
 
 .list-item {
