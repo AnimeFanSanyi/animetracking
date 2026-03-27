@@ -20,6 +20,7 @@ let currentUser = null;
 let userData = { toWatch: [], watched: [] };
 let currentTab = 'toWatch';
 let lastPickedIndex = -1;
+let selectedItemIndex = -1; // Az opciók menühöz
 
 // --- AUTH ---
 document.getElementById('login-btn').onclick = () => signInWithPopup(auth, provider);
@@ -64,29 +65,36 @@ window.importFile = (event) => {
             const exists = userData.toWatch.some(i => i.toLowerCase() === name.toLowerCase()) || 
                            userData.watched.some(i => i.name.toLowerCase() === name.toLowerCase());
             if (!exists) {
-                userData.toWatch.push(name);
+                if (currentTab === 'toWatch') {
+                    userData.toWatch.unshift(name);
+                } else {
+                    userData.watched.unshift({ name: name, time: new Date().toLocaleString() });
+                }
                 addedCount++;
             }
         });
         sync();
-        alert(`Imported ${addedCount} new unique titles!`);
+        alert(`Sikeresen importálva ${addedCount} új anime a(z) ${currentTab === 'toWatch' ? 'To Watch' : 'Watched'} listába!`);
+        event.target.value = ''; // Input reset
     };
     reader.readAsText(file);
 };
 
 // --- EXPORT ---
 window.exportFile = () => {
-    const allAnime = [
-        ...userData.toWatch,
-        ...userData.watched.map(a => a.name)
-    ];
-    if (allAnime.length === 0) return alert("Empty list!");
-    const content = allAnime.join('\n');
+    const listToExport = currentTab === 'toWatch' ? userData.toWatch : userData.watched.map(a => a.name);
+    
+    if (listToExport.length === 0) return alert("A jelenlegi lista üres!");
+    
+    const content = listToExport.join('\n');
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Anime_Tracker_Backup_${new Date().toLocaleDateString()}.txt`;
+    
+    const listName = currentTab === 'toWatch' ? 'ToWatch' : 'Watched';
+    a.download = `Anime_Tracker_${listName}_${new Date().toLocaleDateString()}.txt`;
+    
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -96,9 +104,8 @@ window.exportFile = () => {
 // --- WIPE ---
 window.clearCurrentList = () => {
     const listName = currentTab === 'toWatch' ? 'To Watch' : 'Watched';
-    if (!confirm(`WARNING 1: Delete everything in ${listName}?`)) return;
-    if (!confirm(`WARNING 2: This wipes items. Sure?`)) return;
-    if (!confirm(`FINAL WARNING: This cannot be undone.`)) return;
+    if (!confirm(`FIGYELEM: Biztosan törölsz mindent a(z) ${listName} listából?`)) return;
+    if (!confirm(`VÉGSŐ FIGYELMEZTETÉS: Ezt nem lehet visszavonni. Biztos?`)) return;
     if (currentTab === 'toWatch') userData.toWatch = [];
     else userData.watched = [];
     sync();
@@ -110,8 +117,13 @@ window.addAnime = () => {
     if (!val) return;
     const isDup = userData.toWatch.some(i => i.toLowerCase() === val.toLowerCase()) || 
                   userData.watched.some(i => i.name.toLowerCase() === val.toLowerCase());
-    if (isDup) return alert("Already in list!");
-    userData.toWatch.push(val);
+    if (isDup) return alert("Ez már szerepel valamelyik listádban!");
+    
+    if (currentTab === 'toWatch') {
+        userData.toWatch.unshift(val);
+    } else {
+        userData.watched.unshift({ name: val, time: new Date().toLocaleString() });
+    }
     input.value = '';
     sync();
 };
@@ -125,10 +137,11 @@ window.switchTab = (t) => {
 
 window.handleSearch = () => render();
 
+// --- RANDOM PICKER ---
 window.pickRandom = () => {
-    const search = document.getElementById('searchInput').value.toLowerCase();
-    const pool = userData.toWatch.filter(i => i.toLowerCase().includes(search));
-    if (pool.length === 0) return alert("No anime to pick!");
+    const pool = userData.toWatch; // Szigorúan csak a To Watch-ból sorsol
+    if (pool.length === 0) return alert("Nincs miből sorsolni a To Watch listában!");
+    
     const choice = pool[Math.floor(Math.random() * pool.length)];
     lastPickedIndex = userData.toWatch.indexOf(choice);
     document.getElementById('random-result').innerText = choice;
@@ -146,18 +159,76 @@ window.moveToWatchedFromRandom = () => {
 
 window.closeOverlay = () => document.getElementById('overlay').style.display = 'none';
 
-window.deleteItem = (index) => {
-    if (!confirm("Delete this?")) return;
-    if (currentTab === 'toWatch') userData.toWatch.splice(index, 1);
-    else userData.watched.splice(index, 1);
-    sync();
+// --- ITEM OPTIONS (3 PONTOS MENÜ) ---
+window.openOptions = (index, name) => {
+    selectedItemIndex = index;
+    document.getElementById('options-title').innerText = name;
+    
+    const moveBtn = document.getElementById('move-btn');
+    if (currentTab === 'toWatch') {
+        moveBtn.innerHTML = '➡️ Áthelyezés ide: Watched';
+    } else {
+        moveBtn.innerHTML = '⬅️ Vissza ide: To Watch';
+    }
+    
+    document.getElementById('options-modal').style.display = 'flex';
 };
 
+window.closeOptions = () => {
+    document.getElementById('options-modal').style.display = 'none';
+    selectedItemIndex = -1;
+};
+
+window.editItemPrompt = () => {
+    if (selectedItemIndex === -1) return;
+    const oldName = currentTab === 'toWatch' ? userData.toWatch[selectedItemIndex] : userData.watched[selectedItemIndex].name;
+    const newName = prompt("Mire szeretnéd átírni?", oldName);
+    
+    if (newName && newName.trim() !== "" && newName !== oldName) {
+        if (currentTab === 'toWatch') {
+            userData.toWatch[selectedItemIndex] = newName.trim();
+        } else {
+            userData.watched[selectedItemIndex].name = newName.trim();
+        }
+        sync();
+    }
+    closeOptions();
+};
+
+window.moveListItem = () => {
+    if (selectedItemIndex === -1) return;
+    
+    if (currentTab === 'toWatch') {
+        const name = userData.toWatch.splice(selectedItemIndex, 1)[0];
+        userData.watched.unshift({ name, time: new Date().toLocaleString() });
+    } else {
+        const name = userData.watched.splice(selectedItemIndex, 1)[0].name;
+        userData.toWatch.unshift(name);
+    }
+    sync();
+    closeOptions();
+};
+
+window.confirmDelete = () => {
+    if (selectedItemIndex === -1) return;
+    if (confirm("Biztosan törölni szeretnéd ezt az elemet?")) {
+        if (currentTab === 'toWatch') {
+            userData.toWatch.splice(selectedItemIndex, 1);
+        } else {
+            userData.watched.splice(selectedItemIndex, 1);
+        }
+        sync();
+    }
+    closeOptions();
+};
+
+// --- RENDER ---
 window.render = () => {
     const container = document.getElementById('listContainer');
     const search = document.getElementById('searchInput').value.toLowerCase();
     container.innerHTML = '';
     const list = currentTab === 'toWatch' ? userData.toWatch : userData.watched;
+    
     document.getElementById('countTW').innerText = userData.toWatch.length;
     document.getElementById('countW').innerText = userData.watched.length;
 
@@ -166,8 +237,16 @@ window.render = () => {
         if (name.toLowerCase().includes(search)) {
             const div = document.createElement('div');
             div.className = 'list-item';
-            div.innerHTML = `<div><strong>${name}</strong>${currentTab === 'watched' ? `<br><small>${item.time}</small>` : ''}</div>
-                             <button onclick="deleteItem(${index})" style="width:auto; background:#f43f5e; padding:5px 10px;">X</button>`;
+            // A name.replace megoldja, ha az anime nevében aposztróf (') van, nehogy eltörje az onclick-et
+            const safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+            
+            div.innerHTML = `
+                <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">
+                    <strong>${name}</strong>
+                    ${currentTab === 'watched' ? `<br><small style="color: #94a3b8;">${item.time}</small>` : ''}
+                </div>
+                <button class="btn-options" onclick="openOptions(${index}, '${safeName}')">⋮</button>
+            `;
             container.appendChild(div);
         }
     });
