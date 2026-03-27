@@ -1,88 +1,71 @@
-:root {
-    --bg: #020617;
-    --card: #1e1b4b;
-    --text: #f8fafc;
-    --accent: #a78bfa;
-    --accent-dark: #7c3aed;
-    --danger: #f43f5e;
-    --success: #10b981;
-}
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#020617">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script type="module" src="script.js"></script>
+    <title>Anime Tracker</title>
+</head>
+<body>
+    <div id="auth-container" class="container">
+        <h1>Anime Tracker</h1>
+        <p>Login to sync your list across devices</p>
+        <button id="login-btn">Sign in with Google</button>
+    </div>
 
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: radial-gradient(circle at top, #1e1b4b 0%, #020617 100%);
-    color: var(--text);
-    margin: 0;
-    min-height: 100vh;
-    padding: 20px;
-}
+    <div id="app-container" class="container" style="display:none;">
+        <header>
+            <span id="user-display">Welcome, <span id="username-text">User</span></span>
+            <button id="logout-btn">Logout</button>
+        </header>
 
-.container { max-width: 500px; margin: 0 auto; padding-top: 20px; }
+        <button class="btn-random" onclick="pickRandom()">🎲 PICK RANDOM ANIME</button>
+        
+        <div class="input-group">
+            <input type="text" id="searchInput" placeholder="Search or add anime..." onkeyup="handleSearch()">
+            <button class="btn-add" onclick="addAnime()">+ Add</button>
+        </div>
 
-h1 { text-align: center; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
+        <div class="import-export-section">
+            <div class="btn-row">
+                <button class="btn-secondary" onclick="document.getElementById('fileInput').click()">📁 Import</button>
+                <button class="btn-secondary" onclick="exportFile()">💾 Export</button>
+            </div>
+            <input type="file" id="fileInput" style="display:none" accept=".txt,.csv" onchange="importFile(event)">
+        </div>
 
-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 14px; opacity: 0.8; }
+        <div class="tabs">
+            <div id="tabToWatch" class="tab active" onclick="switchTab('toWatch')">To Watch (<span id="countTW">0</span>)</div>
+            <div id="tabWatched" class="tab" onclick="switchTab('watched')">Watched (<span id="countW">0</span>)</div>
+        </div>
 
-#login-btn { 
-    background: linear-gradient(45deg, var(--accent), var(--accent-dark));
-    color: white; 
-    font-weight: bold; 
-    display: flex; align-items: center; justify-content: center; gap: 10px; margin: 50px auto; width: 80%;
-    cursor: pointer;
-    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
-}
+        <button class="btn-clear" onclick="clearCurrentList()">🗑️ Wipe Current List</button>
 
-input, button {
-    width: 100%; padding: 14px; margin: 8px 0; border-radius: 12px; border: none; font-size: 16px; box-sizing: border-box; cursor: pointer;
-}
+        <div id="listContainer"></div>
+    </div>
 
-input { background: rgba(255, 255, 255, 0.05); color: white; border: 1px solid var(--accent); cursor: text; }
+    <div id="overlay">
+        <div class="overlay-content" style="text-align: center;">
+            <div style="color: #a78bfa; margin-bottom: 10px;">Your next mission:</div>
+            <div id="random-result"></div>
+            <button onclick="moveToWatchedFromRandom()" style="background: #22c55e;">Mark as Watched</button>
+            <button onclick="closeOverlay()" style="background: #312e81; color: white;">Skip</button>
+        </div>
+    </div>
 
-.btn-add { background: var(--accent); color: var(--bg); font-weight: bold; }
-
-.btn-random {
-    background: linear-gradient(45deg, var(--accent), var(--accent-dark));
-    color: white; font-weight: bold; font-size: 18px; box-shadow: 0 0 20px rgba(167, 139, 250, 0.3);
-}
-
-/* Új gomb elrendezés */
-.btn-row {
-    display: flex;
-    gap: 10px;
-    margin: 8px 0;
-}
-
-.btn-secondary {
-    flex: 1;
-    background: rgba(167, 139, 250, 0.1);
-    color: var(--accent);
-    border: 1px solid var(--accent);
-    font-size: 14px;
-    padding: 10px;
-}
-
-.tabs { display: flex; gap: 10px; margin: 20px 0 10px 0; }
-.tab { flex: 1; background: #0f172a; color: #94a3b8; padding: 12px; text-align: center; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
-.tab.active { background: var(--card); color: var(--accent); border: 1px solid var(--accent); }
-
-.list-item {
-    background: rgba(30, 27, 75, 0.5); padding: 15px; border-radius: 12px; margin-bottom: 12px;
-    display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(5px);
-}
-
-#overlay {
-    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(2, 6, 23, 0.95); z-index: 100; flex-direction: column; justify-content: center; align-items: center;
-}
-
-#random-result { font-size: 32px; font-weight: bold; text-align: center; margin: 20px 0; text-shadow: 0 0 15px var(--accent); }
-
-.btn-clear {
-    background: transparent;
-    color: var(--danger);
-    border: 1px solid var(--danger);
-    font-size: 14px;
-    margin-bottom: 20px;
-    opacity: 0.8;
-}
-.btn-clear:hover { background: var(--danger); color: white; opacity: 1; }
+    <div id="options-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="options-title" style="color: var(--text); margin-top: 0;">Anime Name</h3>
+            <button onclick="editItemPrompt()" style="background: var(--accent-dark);">✏️ Szerkesztés</button>
+            <button id="move-btn" onclick="moveListItem()" style="background: #0ea5e9;">🔄 Áthelyezés</button>
+            <button onclick="confirmDelete()" style="background: var(--danger);">🗑️ Törlés</button>
+            <button onclick="closeOptions()" style="background: transparent; border: 1px solid #475569; margin-top: 15px;">Mégse</button>
+        </div>
+    </div>
+</body>
+</html>
