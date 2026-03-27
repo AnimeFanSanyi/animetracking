@@ -16,331 +16,222 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
+// ALAP ÁLLAPOTOK
 let currentUser = null;
-let userData = { toWatch: [], watched: [], library: [] };
+let userData = { toWatch: [], watched: [], archive: [] };
 let currentTab = 'toWatch';
 let lastPickedIndex = -1;
-let selectedItemIndex = -1; 
+let selectedItemIndex = -1;
 
-// --- AUTH ---
-document.getElementById('login-btn').onclick = () => signInWithPopup(auth, provider);
-document.getElementById('logout-btn').onclick = () => signOut(auth).then(() => location.reload());
+// EGYEDI PROMPT ÁLLAPOTOK
+let customPromptCallback = null;
 
-onAuthStateChanged(auth, async (user) => {
+// TÖRLÉS ÁLLAPOTOK (Archive)
+let deleteTargetIndex = -1;
+let deleteStep = 0;
+const deleteMessages = [
+    "Biztosan törölni szeretnéd ezt a fő elemet az Archívumból?",
+    "VIGYÁZAT: Ez egy visszavonhatatlan művelet. Minden al-elem és a teljes hierarchia elvész. Biztosan folytatod?",
+    "UTOLSÓ ESÉLY! Ha most rányomsz, az elem végleg megsemmisül. Tényleg törlöd?"
+];
+
+// ARCHIVE MODAL ÁLLAPOTOK
+let currentArchiveItem = null; 
+let isEditingArchive = false;
+let editingArchiveIndex = -1;
+let targetTreePath = ''; // Hierarchia hozzáadásához
+
+// --- AUTH & SYNC ---
+onAuthStateChanged(auth, user => {
     if (user) {
         currentUser = user;
         document.getElementById('auth-container').style.display = 'none';
         document.getElementById('app-container').style.display = 'block';
         document.getElementById('username-text').innerText = user.displayName;
-        await loadUserData();
+        loadUserData();
     } else {
         document.getElementById('auth-container').style.display = 'block';
         document.getElementById('app-container').style.display = 'none';
     }
 });
 
+document.getElementById('login-btn').onclick = () => signInWithPopup(auth, provider);
+document.getElementById('logout-btn').onclick = () => signOut(auth);
+
 async function loadUserData() {
     const docRef = doc(db, "users", currentUser.uid);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
         userData = docSnap.data();
-        if (!userData.library) userData.library = [];
+        if (!userData.archive) userData.archive = []; // Biztosítás régi usereknél
     } else {
-        userData = { toWatch: [], watched: [], library: [] };
+        userData = { toWatch: [], watched: [], archive: [] };
     }
     render();
 }
 
 async function sync() {
-    if (currentUser) await setDoc(doc(db, "users", currentUser.uid), userData);
-    render();
+    if (currentUser) {
+        await setDoc(doc(db, "users", currentUser.uid), userData);
+        render();
+    }
 }
 
-// --- TAB SWITCH ---
-window.switchTab = (t) => {
-    currentTab = t;
-    document.getElementById('tabToWatch').classList.toggle('active', t === 'toWatch');
-    document.getElementById('tabWatched').classList.toggle('active', t === 'watched');
-    document.getElementById('tabLibrary').classList.toggle('active', t === 'library');
+// --- EGYEDI PROMPT LOGIKA ---
+window.openCustomPrompt = (title, defaultValue, callback) => {
+    document.getElementById('custom-prompt-title').innerText = title;
+    const input = document.getElementById('custom-prompt-input');
+    input.value = defaultValue;
+    customPromptCallback = callback;
     
-    // UI frissítése a fültől függően
-    const searchInput = document.getElementById('searchInput');
-    const btnAddMain = document.getElementById('btn-add-main');
-    const randomBtn = document.getElementById('btn-random-main');
-    const importExport = document.getElementById('import-export-section');
-    const btnClear = document.getElementById('btn-clear-main');
-    
-    if (t === 'library') {
-        searchInput.style.display = 'none';
-        randomBtn.style.display = 'none';
-        importExport.style.display = 'none';
-        btnClear.style.display = 'none';
-        btnAddMain.innerText = '+ Új Főelem';
-        btnAddMain.onclick = () => openAddNodeModal(null); 
-    } else {
-        searchInput.style.display = 'block';
-        randomBtn.style.display = 'block';
-        importExport.style.display = 'block';
-        btnClear.style.display = 'block';
-        btnAddMain.innerText = '+ Add';
-        btnAddMain.onclick = addAnime;
-    }
-    
-    render();
+    document.getElementById('custom-prompt-modal').style.display = 'flex';
+    input.focus();
 };
 
-window.handleSearch = () => render();
+window.closeCustomPrompt = () => {
+    document.getElementById('custom-prompt-modal').style.display = 'none';
+    customPromptCallback = null;
+};
 
-// --- ALAP LISTA FUNKCIÓK (To Watch / Watched) ---
+document.getElementById('custom-prompt-btn').onclick = () => {
+    const val = document.getElementById('custom-prompt-input').value;
+    if (customPromptCallback) customPromptCallback(val);
+    closeCustomPrompt();
+};
+
+// --- ALAP FUNKCIÓK (To Watch / Watched) ---
 window.addAnime = () => {
+    if (currentTab === 'archive') {
+        openArchiveModal(); // Archívumban új ablakot nyit
+        return;
+    }
+
     const input = document.getElementById('searchInput');
     const val = input.value.trim();
     if (!val) return;
+    
     const isDup = userData.toWatch.some(i => i.toLowerCase() === val.toLowerCase()) || 
                   userData.watched.some(i => i.name.toLowerCase() === val.toLowerCase());
-    if (isDup) return alert("Ez már szerepel valamelyik listádban!");
     
-    if (currentTab === 'toWatch') userData.toWatch.unshift(val);
-    else userData.watched.unshift({ name: val, time: new Date().toLocaleString() });
+    if (isDup) {
+        openCustomPrompt("Hiba", "Ez már szerepel valamelyik listádban!", () => {}); 
+        return;
+    }
     
+    if (currentTab === 'toWatch') {
+        userData.toWatch.unshift(val);
+    } else {
+        userData.watched.unshift({ name: val, time: new Date().toLocaleString() });
+    }
     input.value = '';
     sync();
 };
 
+document.getElementById('searchInput').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') addAnime();
+    else render(); 
+});
+
 window.clearCurrentList = () => {
-    const listName = currentTab === 'toWatch' ? 'To Watch' : 'Watched';
-    if (!confirm(`FIGYELEM: Biztosan törölsz mindent a(z) ${listName} listából?`)) return;
-    if (!confirm(`VÉGSŐ FIGYELMEZTETÉS: Ezt nem lehet visszavonni. Biztos?`)) return;
-    if (currentTab === 'toWatch') userData.toWatch = [];
-    else userData.watched = [];
-    sync();
+    openCustomPrompt("Biztos törlöd a jelenlegi listát? Írd be: 'Igen'", "", (val) => {
+        if (val && val.toLowerCase() === 'igen') {
+            if (currentTab === 'toWatch') userData.toWatch = [];
+            else if (currentTab === 'watched') userData.watched = [];
+            else userData.archive = [];
+            sync();
+        }
+    });
 };
 
 window.pickRandom = () => {
-    const pool = userData.toWatch;
-    if (pool.length === 0) return alert("Nincs miből sorsolni a To Watch listában!");
-    const choice = pool[Math.floor(Math.random() * pool.length)];
-    lastPickedIndex = userData.toWatch.indexOf(choice);
-    document.getElementById('random-result').innerText = choice;
-    document.getElementById('overlay').style.display = 'flex';
-};
-
-window.moveToWatchedFromRandom = () => {
-    if (lastPickedIndex > -1) {
-        const name = userData.toWatch.splice(lastPickedIndex, 1)[0];
-        userData.watched.unshift({ name, time: new Date().toLocaleString() });
-        document.getElementById('overlay').style.display = 'none';
-        sync();
+    if (userData.toWatch.length === 0) {
+        openCustomPrompt("Hiba", "A To Watch lista üres!", () => {});
+        return;
     }
+    let randomIndex;
+    do {
+        randomIndex = Math.floor(Math.random() * userData.toWatch.length);
+    } while (randomIndex === lastPickedIndex && userData.toWatch.length > 1);
+    
+    lastPickedIndex = randomIndex;
+    document.getElementById('random-result').innerText = userData.toWatch[randomIndex];
+    document.getElementById('overlay').style.display = 'flex';
 };
 
 window.closeOverlay = () => document.getElementById('overlay').style.display = 'none';
 
-// --- ITEM OPTIONS LOGIKA ---
+window.moveToWatchedFromRandom = () => {
+    const item = userData.toWatch.splice(lastPickedIndex, 1)[0];
+    userData.watched.unshift({ name: item, time: new Date().toLocaleString() });
+    sync();
+    closeOverlay();
+};
+
+// --- OPCIÓK MODAL (To Watch / Watched) ---
 window.openOptions = (index, name) => {
     selectedItemIndex = index;
     document.getElementById('options-title').innerText = name;
+    
     const moveBtn = document.getElementById('move-btn');
-    moveBtn.innerHTML = currentTab === 'toWatch' ? '➡️ Áthelyezés ide: Watched' : '⬅️ Vissza ide: To Watch';
+    moveBtn.innerText = currentTab === 'toWatch' ? '🔄 Áthelyezés Watched-be' : '🔄 Áthelyezés To Watch-ba';
+    
     document.getElementById('options-modal').style.display = 'flex';
 };
-
-window.closeOptions = () => {
-    document.getElementById('options-modal').style.display = 'none';
-    selectedItemIndex = -1;
-};
+window.closeOptions = () => document.getElementById('options-modal').style.display = 'none';
 
 window.editItemPrompt = () => {
-    if (selectedItemIndex === -1) return;
-    const oldName = currentTab === 'toWatch' ? userData.toWatch[selectedItemIndex] : userData.watched[selectedItemIndex].name;
-    const newName = prompt("Mire szeretnéd átírni?", oldName);
-    if (newName && newName.trim() !== "" && newName !== oldName) {
-        if (currentTab === 'toWatch') userData.toWatch[selectedItemIndex] = newName.trim();
-        else userData.watched[selectedItemIndex].name = newName.trim();
-        sync();
-    }
+    const oldVal = currentTab === 'toWatch' ? userData.toWatch[selectedItemIndex] : userData.watched[selectedItemIndex].name;
+    openCustomPrompt("Szerkesztés:", oldVal, (newVal) => {
+        if (newVal && newVal.trim() !== '') {
+            if (currentTab === 'toWatch') userData.toWatch[selectedItemIndex] = newVal.trim();
+            else userData.watched[selectedItemIndex].name = newVal.trim();
+            sync();
+        }
+    });
     closeOptions();
 };
 
 window.moveListItem = () => {
-    if (selectedItemIndex === -1) return;
     if (currentTab === 'toWatch') {
-        const name = userData.toWatch.splice(selectedItemIndex, 1)[0];
-        userData.watched.unshift({ name, time: new Date().toLocaleString() });
+        const item = userData.toWatch.splice(selectedItemIndex, 1)[0];
+        userData.watched.unshift({ name: item, time: new Date().toLocaleString() });
     } else {
-        const name = userData.watched.splice(selectedItemIndex, 1)[0].name;
-        userData.toWatch.unshift(name);
+        const item = userData.watched.splice(selectedItemIndex, 1)[0].name;
+        userData.toWatch.unshift(item);
     }
     sync();
     closeOptions();
 };
 
 window.confirmDelete = () => {
-    if (selectedItemIndex === -1) return;
-    if (confirm("Biztosan törölni szeretnéd ezt az elemet?")) {
-        if (currentTab === 'toWatch') userData.toWatch.splice(selectedItemIndex, 1);
-        else userData.watched.splice(selectedItemIndex, 1);
-        sync();
-    }
+    if (currentTab === 'toWatch') userData.toWatch.splice(selectedItemIndex, 1);
+    else userData.watched.splice(selectedItemIndex, 1);
+    sync();
     closeOptions();
 };
 
-// --- IMPORT / EXPORT ---
-window.importFile = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const lines = e.target.result.split(/\r?\n/);
-        let addedCount = 0;
-        lines.forEach(line => {
-            const name = line.trim();
-            if (!name) return;
-            const exists = userData.toWatch.some(i => i.toLowerCase() === name.toLowerCase()) || 
-                           userData.watched.some(i => i.name.toLowerCase() === name.toLowerCase());
-            if (!exists) {
-                if (currentTab === 'toWatch') userData.toWatch.unshift(name);
-                else userData.watched.unshift({ name: name, time: new Date().toLocaleString() });
-                addedCount++;
-            }
-        });
-        sync();
-        alert(`Sikeresen importálva ${addedCount} új anime a(z) ${currentTab === 'toWatch' ? 'To Watch' : 'Watched'} listába!`);
-        event.target.value = '';
-    };
-    reader.readAsText(file);
+// --- RENDER (Főképernyő) ---
+window.switchTab = (t) => {
+    currentTab = t;
+    document.getElementById('tabToWatch').classList.toggle('active', t === 'toWatch');
+    document.getElementById('tabWatched').classList.toggle('active', t === 'watched');
+    document.getElementById('tabArchive').classList.toggle('active', t === 'archive');
+    render();
 };
-
-window.exportFile = () => {
-    const listToExport = currentTab === 'toWatch' ? userData.toWatch : userData.watched.map(a => a.name);
-    if (listToExport.length === 0) return alert("A jelenlegi lista üres!");
-    const content = listToExport.join('\n');
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const listName = currentTab === 'toWatch' ? 'ToWatch' : 'Watched';
-    a.download = `Anime_Tracker_${listName}_${new Date().toLocaleDateString()}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-};
-
-// --- LIBRARY / TREE LOGIKA ---
-let targetPathForAdd = null; 
-
-// Rekurzív kereső: megkeresi a fában az adott ID-jű elemet
-function findNodeById(nodes, id) {
-    for (let node of nodes) {
-        if (node.id === id) return node;
-        if (node.children && node.children.length > 0) {
-            const found = findNodeById(node.children, id);
-            if (found) return found;
-        }
-    }
-    return null;
-}
-
-window.openAddNodeModal = (parentId) => {
-    targetPathForAdd = parentId;
-    const subtitle = document.getElementById('add-node-subtitle');
-    
-    if (parentId === null) {
-        subtitle.innerText = "Ide: Gyökérkönyvtár";
-    } else {
-        const parentNode = findNodeById(userData.library, parentId);
-        subtitle.innerText = `Ide: ${parentNode ? parentNode.name : 'Ismeretlen'}`;
-    }
-    
-    document.getElementById('node-name-input').value = '';
-    document.getElementById('add-node-modal').style.display = 'flex';
-};
-
-window.closeAddNodeModal = () => {
-    document.getElementById('add-node-modal').style.display = 'none';
-    targetPathForAdd = null;
-};
-
-window.confirmAddNode = () => {
-    const type = document.getElementById('node-type-select').value;
-    const name = document.getElementById('node-name-input').value.trim();
-    
-    if (!name) return alert("Kérlek adj meg egy nevet!");
-
-    const newNode = {
-        id: Date.now().toString(),
-        type: type,
-        name: name,
-        expanded: false,
-        children: []
-    };
-
-    if (targetPathForAdd === null) {
-        userData.library.push(newNode);
-    } else {
-        const parentNode = findNodeById(userData.library, targetPathForAdd);
-        if (parentNode) {
-            if (!parentNode.children) parentNode.children = [];
-            parentNode.children.push(newNode);
-            parentNode.expanded = true; // Nyissuk is ki, ha már adtunk alá valamit
-        }
-    }
-
-    sync();
-    closeAddNodeModal();
-};
-
-window.toggleTreeNode = (id) => {
-    const node = findNodeById(userData.library, id);
-    if (node) {
-        node.expanded = !node.expanded;
-        sync(); // Menti az állapotot és újra renderel
-    }
-};
-
-// --- RENDER ---
-function renderTree(nodes) {
-    let html = '';
-    nodes.forEach(node => {
-        const hasChildren = node.children && node.children.length > 0;
-        const icon = hasChildren ? (node.expanded ? '▼' : '►') : '•';
-        
-        html += `
-        <div class="tree-item">
-            <div class="tree-header">
-                <div class="tree-title-area" onclick="toggleTreeNode('${node.id}')">
-                    <span class="tree-toggle">${icon}</span>
-                    <span class="badge">#${node.type.toLowerCase()}</span> 
-                    <strong>${node.name}</strong>
-                </div>
-                <button class="btn-add-child" onclick="openAddNodeModal('${node.id}')">+ Alá</button>
-            </div>
-            ${hasChildren ? `<div class="tree-children ${node.expanded ? 'expanded' : ''}">${renderTree(node.children)}</div>` : ''}
-        </div>`;
-    });
-    return html;
-}
 
 window.render = () => {
     const container = document.getElementById('listContainer');
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    container.innerHTML = '';
+    
+    let list = [];
+    if (currentTab === 'toWatch') list = userData.toWatch;
+    else if (currentTab === 'watched') list = userData.watched;
+    else list = userData.archive;
+    
     document.getElementById('countTW').innerText = userData.toWatch.length;
     document.getElementById('countW').innerText = userData.watched.length;
-    
-    container.innerHTML = '';
-
-    if (currentTab === 'library') {
-        if (userData.library.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 30px;">A Library üres. Adj hozzá egy új főelemet (pl. animét vagy mangát)!</p>';
-        } else {
-            container.innerHTML = renderTree(userData.library);
-        }
-        return;
-    }
-
-    // Régi To Watch / Watched renderelés
-    const search = document.getElementById('searchInput').value.toLowerCase();
-    const list = currentTab === 'toWatch' ? userData.toWatch : userData.watched;
+    document.getElementById('countA').innerText = userData.archive ? userData.archive.length : 0;
 
     list.forEach((item, index) => {
         const name = currentTab === 'toWatch' ? item : item.name;
@@ -349,14 +240,267 @@ window.render = () => {
             div.className = 'list-item';
             const safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
             
-            div.innerHTML = `
-                <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">
-                    <strong>${name}</strong>
-                    ${currentTab === 'watched' ? `<br><small style="color: #94a3b8;">${item.time}</small>` : ''}
-                </div>
-                <button class="btn-options" onclick="openOptions(${index}, '${safeName}')">⋮</button>
-            `;
+            if (currentTab === 'archive') {
+                // ARCHIVE NÉZET
+                div.innerHTML = `
+                    <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; display: flex; align-items: center;">
+                        <strong>${name}</strong>
+                        <span class="hashtag">#${item.type}</span>
+                    </div>
+                    <div style="display: flex; gap: 5px;">
+                        <button class="btn-icon" style="color: var(--accent);" onclick="openArchiveModal(${index})">✎</button>
+                        <button class="btn-icon" onclick="startDelete(${index})">🗑️</button>
+                    </div>
+                `;
+            } else {
+                // TO WATCH / WATCHED NÉZET
+                div.innerHTML = `
+                    <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">
+                        <strong>${name}</strong>
+                        ${currentTab === 'watched' ? `<br><small style="color: #94a3b8;">${item.time}</small>` : ''}
+                    </div>
+                    <button class="btn-options" onclick="openOptions(${index}, '${safeName}')">⋮</button>
+                `;
+            }
             container.appendChild(div);
         }
     });
+};
+
+// --- ARCHIVE: 3-LÉPCSŐS TÖRLÉS ---
+window.startDelete = (index) => {
+    deleteTargetIndex = index;
+    deleteStep = 0;
+    updateDeleteModal();
+    document.getElementById('delete-modal').style.display = 'flex';
+};
+
+window.updateDeleteModal = () => {
+    document.getElementById('delete-msg').innerText = deleteMessages[deleteStep];
+    const btn = document.getElementById('btn-confirm-delete');
+    if (deleteStep === 2) {
+        btn.innerText = "VÉGLEGES TÖRLÉS";
+        btn.style.boxShadow = "0 0 15px var(--danger)";
+    } else {
+        btn.innerText = "Tovább";
+        btn.style.boxShadow = "none";
+    }
+};
+
+window.processDeleteStep = () => {
+    deleteStep++;
+    if (deleteStep < 3) {
+        updateDeleteModal();
+    } else {
+        userData.archive.splice(deleteTargetIndex, 1);
+        sync();
+        cancelDelete();
+    }
+};
+
+window.cancelDelete = () => {
+    document.getElementById('delete-modal').style.display = 'none';
+    deleteTargetIndex = -1;
+    deleteStep = 0;
+};
+
+// --- ARCHIVE: ADD / EDIT MODAL ---
+window.switchArchTab = (num) => {
+    document.getElementById('archTab1').classList.toggle('active', num === 1);
+    document.getElementById('archTab2').classList.toggle('active', num === 2);
+    document.getElementById('arch-tab1-content').style.display = num === 1 ? 'block' : 'none';
+    document.getElementById('arch-tab2-content').style.display = num === 2 ? 'block' : 'none';
+};
+
+window.openArchiveModal = (index = -1) => {
+    switchArchTab(1);
+    
+    if (index === -1) {
+        isEditingArchive = false;
+        editingArchiveIndex = -1;
+        document.getElementById('archive-modal-title').innerText = "Új Archív Elem";
+        currentArchiveItem = { name: '', type: 'Anime', manga: [], ova: [], movie: [], hierarchy: [] };
+    } else {
+        isEditingArchive = true;
+        editingArchiveIndex = index;
+        document.getElementById('archive-modal-title').innerText = "Archív Elem Szerkesztése";
+        currentArchiveItem = JSON.parse(JSON.stringify(userData.archive[index])); // Deep copy izolált szerkesztéshez
+        
+        if(!currentArchiveItem.manga) currentArchiveItem.manga = [];
+        if(!currentArchiveItem.ova) currentArchiveItem.ova = [];
+        if(!currentArchiveItem.movie) currentArchiveItem.movie = [];
+        if(!currentArchiveItem.hierarchy) currentArchiveItem.hierarchy = [];
+    }
+
+    document.getElementById('arch-name').value = currentArchiveItem.name;
+    document.getElementById('arch-type').value = currentArchiveItem.type;
+    
+    renderArchSubItems();
+    renderTree(); // 2. Fül Hierarchia fa renderelése
+    document.getElementById('archive-modal').style.display = 'flex';
+};
+
+window.closeArchiveModal = () => {
+    document.getElementById('archive-modal').style.display = 'none';
+    currentArchiveItem = null;
+};
+
+window.saveArchiveItem = () => {
+    const name = document.getElementById('arch-name').value.trim();
+    if (!name) return openCustomPrompt("Hiba", "A cím nem lehet üres!", () => {});
+
+    currentArchiveItem.name = name;
+    currentArchiveItem.type = document.getElementById('arch-type').value;
+
+    if (isEditingArchive) userData.archive[editingArchiveIndex] = currentArchiveItem;
+    else userData.archive.unshift(currentArchiveItem);
+
+    sync();
+    closeArchiveModal();
+};
+
+// --- ARCHIVE: 1. FÜL LOGIKA (Manga, OVA, Movie) ---
+window.renderArchSubItems = () => {
+    const categories = ['manga', 'ova', 'movie'];
+    categories.forEach(cat => {
+        const container = document.getElementById(`arch-${cat}-list`);
+        container.innerHTML = '';
+        currentArchiveItem[cat].forEach((subName, i) => {
+            const div = document.createElement('div');
+            div.className = 'sub-item';
+            div.innerHTML = `
+                <span title="Dupla kattintás a szerkesztéshez">${subName}</span>
+                <button class="btn-icon" onclick="deleteArchSubItem('${cat}', ${i})">🗑️</button>
+            `;
+            div.querySelector('span').ondblclick = () => {
+                openCustomPrompt(`${cat.toUpperCase()} elem szerkesztése:`, subName, (newVal) => {
+                    if (newVal && newVal.trim() !== '') {
+                        currentArchiveItem[cat][i] = newVal.trim();
+                        renderArchSubItems();
+                    }
+                });
+            };
+            container.appendChild(div);
+        });
+    });
+};
+
+window.openSubItemPrompt = (category) => {
+    openCustomPrompt(`${category.toUpperCase()} hozzáadása:`, "", (val) => {
+        if (val && val.trim() !== '') {
+            currentArchiveItem[category].push(val.trim());
+            renderArchSubItems();
+        }
+    });
+};
+
+window.deleteArchSubItem = (category, index) => {
+    currentArchiveItem[category].splice(index, 1);
+    renderArchSubItems();
+};
+
+// --- ARCHIVE: 2. FÜL LOGIKA (HIERARCHIA - REKURZÍV FA) ---
+// Útvonal navigátor segédfüggvény (pl. "0,2,1" alapján kikeresi a szülő tömböt)
+function getParentArrayAndIndex(pathStr) {
+    if (pathStr === '') return { parentArray: currentArchiveItem.hierarchy, index: null };
+    const parts = pathStr.split(',').map(Number);
+    const index = parts.pop();
+    let curr = currentArchiveItem.hierarchy;
+    for (let i = 0; i < parts.length; i++) {
+        curr = curr[parts[i]].children;
+    }
+    return { parentArray: curr, index: index };
+}
+
+window.renderTree = (container = document.getElementById('tree-container'), nodes = currentArchiveItem.hierarchy, path = []) => {
+    container.innerHTML = '';
+    if (nodes.length === 0 && path.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted); text-align:center; font-size: 13px;">A hierarchia üres. Adj hozzá egy Fő elemet!</p>';
+        return;
+    }
+
+    nodes.forEach((node, idx) => {
+        const currentPath = [...path, idx];
+        const pathStr = currentPath.join(',');
+        
+        const div = document.createElement('div');
+        div.className = 'tree-node';
+
+        let innerHTML = '';
+        if (node.type === 'Episodes') {
+            innerHTML = `<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📺 Epizódok: <strong style="color:var(--accent);">${node.value}</strong></span>`;
+        } else {
+            innerHTML = `<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📂 ${node.type}: <strong style="color:var(--text);">${node.name}</strong></span>`;
+        }
+
+        innerHTML += `<div class="tree-actions">`;
+        if (node.type !== 'Episodes') {
+            innerHTML += `<button class="btn-icon" onclick="openTreeNodeSelector('${pathStr}')">➕</button>`;
+        }
+        innerHTML += `<button class="btn-icon" onclick="deleteTreeNode('${pathStr}')">🗑️</button></div>`;
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'tree-header';
+        headerDiv.innerHTML = innerHTML;
+        div.appendChild(headerDiv);
+
+        if (node.children && node.children.length > 0) {
+            const childrenContainer = document.createElement('div');
+            childrenContainer.className = 'tree-children';
+            renderTree(childrenContainer, node.children, currentPath);
+            div.appendChild(childrenContainer);
+        }
+        container.appendChild(div);
+    });
+};
+
+window.openTreeNodeSelector = (pathStr) => {
+    targetTreePath = pathStr;
+    document.getElementById('tree-node-selector-modal').style.display = 'flex';
+};
+window.closeTreeNodeSelector = () => {
+    document.getElementById('tree-node-selector-modal').style.display = 'none';
+};
+
+window.addTreeNode = (type) => {
+    closeTreeNodeSelector();
+    const promptTitle = type === 'Episodes' ? 'Epizód Number vagy Range (pl. 1 vagy 1-12):' : `${type} neve:`;
+    
+    openCustomPrompt(promptTitle, "", (val) => {
+        if (val && val.trim() !== '') {
+            const newNode = type === 'Episodes' 
+                ? { type: type, value: val.trim() } 
+                : { type: type, name: val.trim(), children: [] };
+            
+            if (targetTreePath === '') {
+                currentArchiveItem.hierarchy.push(newNode);
+            } else {
+                const { parentArray, index } = getParentArrayAndIndex(targetTreePath);
+                parentArray[index].children.push(newNode);
+            }
+            renderTree();
+        }
+    });
+};
+
+window.editTreeNode = (pathStr) => {
+    const { parentArray, index } = getParentArrayAndIndex(pathStr);
+    const node = parentArray[index];
+    
+    const promptTitle = node.type === 'Episodes' ? 'Epizód módosítása:' : `${node.type} nevének módosítása:`;
+    const oldVal = node.type === 'Episodes' ? node.value : node.name;
+
+    openCustomPrompt(promptTitle, oldVal, (newVal) => {
+        if (newVal && newVal.trim() !== '') {
+            if (node.type === 'Episodes') node.value = newVal.trim();
+            else node.name = newVal.trim();
+            renderTree();
+        }
+    });
+};
+
+window.deleteTreeNode = (pathStr) => {
+    const { parentArray, index } = getParentArrayAndIndex(pathStr);
+    parentArray.splice(index, 1);
+    renderTree();
 };
