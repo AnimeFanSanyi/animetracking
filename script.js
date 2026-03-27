@@ -22,60 +22,9 @@ let currentTab = 'toWatch';
 let lastPickedIndex = -1;
 let selectedItemIndex = -1; 
 
-// --- CUSTOM MODALS (Alert, Confirm, Prompt helyettesítők) ---
-function uiModal(options) {
-    return new Promise((resolve) => {
-        const modal = document.getElementById('custom-dialog-modal');
-        const titleEl = document.getElementById('cd-title');
-        const msgEl = document.getElementById('cd-message');
-        const inputEl = document.getElementById('cd-input');
-        const btnCancel = document.getElementById('cd-btn-cancel');
-        const btnConfirm = document.getElementById('cd-btn-confirm');
-
-        titleEl.innerText = options.title || "Figyelem";
-        titleEl.style.color = options.danger ? 'var(--danger)' : 'var(--accent)';
-        msgEl.innerText = options.message || "";
-        
-        inputEl.style.display = options.type === 'prompt' ? 'block' : 'none';
-        inputEl.value = options.defaultValue || "";
-        
-        btnCancel.style.display = options.type === 'alert' ? 'none' : 'block';
-        btnConfirm.style.background = options.danger ? 'var(--danger)' : 'var(--accent-dark)';
-        btnConfirm.innerText = options.confirmText || "Rendben";
-
-        modal.style.display = 'flex';
-
-        // Cleanup and resolve
-        const cleanup = (result) => {
-            modal.style.display = 'none';
-            btnConfirm.onclick = null;
-            btnCancel.onclick = null;
-            resolve(result);
-        };
-
-        btnConfirm.onclick = () => {
-            if (options.type === 'prompt') cleanup(inputEl.value);
-            else cleanup(true);
-        };
-        btnCancel.onclick = () => cleanup(false);
-    });
-}
-
-const uiAlert = (msg) => uiModal({ type: 'alert', message: msg });
-const uiConfirm = (msg, danger = false, confirmText) => uiModal({ type: 'confirm', message: msg, danger, confirmText });
-const uiPrompt = (msg, defVal) => uiModal({ type: 'prompt', message: msg, defaultValue: defVal });
-
 // --- AUTH ---
-document.getElementById('login-btn').addEventListener('click', () => {
-    signInWithPopup(auth, provider).catch(error => {
-        console.error("Login hiba:", error);
-        uiAlert("Hiba a bejelentkezés során. Próbáld újra!");
-    });
-});
-
-document.getElementById('logout-btn').addEventListener('click', () => {
-    signOut(auth).then(() => location.reload());
-});
+document.getElementById('login-btn').onclick = () => signInWithPopup(auth, provider);
+document.getElementById('logout-btn').onclick = () => signOut(auth).then(() => location.reload());
 
 onAuthStateChanged(auth, async (user) => {
     if (user) {
@@ -91,25 +40,15 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 async function loadUserData() {
-    try {
-        const docRef = doc(db, "users", currentUser.uid);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            userData = {
-                toWatch: data.toWatch || [],
-                watched: data.watched || [],
-                library: data.library || []
-            };
-        } else {
-            userData = { toWatch: [], watched: [], library: [] };
-        }
-        render();
-    } catch (e) {
-        console.error("Hiba az adatok betöltésekor", e);
-        uiAlert("Nem sikerült betölteni az adatokat.");
+    const docRef = doc(db, "users", currentUser.uid);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        userData = docSnap.data();
+        if (!userData.library) userData.library = [];
+    } else {
+        userData = { toWatch: [], watched: [], library: [] };
     }
+    render();
 }
 
 async function sync() {
@@ -124,6 +63,7 @@ window.switchTab = (t) => {
     document.getElementById('tabWatched').classList.toggle('active', t === 'watched');
     document.getElementById('tabLibrary').classList.toggle('active', t === 'library');
     
+    // UI frissítése a fültől függően
     const searchInput = document.getElementById('searchInput');
     const btnAddMain = document.getElementById('btn-add-main');
     const randomBtn = document.getElementById('btn-random-main');
@@ -145,20 +85,20 @@ window.switchTab = (t) => {
         btnAddMain.innerText = '+ Add';
         btnAddMain.onclick = addAnime;
     }
+    
     render();
 };
 
 window.handleSearch = () => render();
 
-// --- ALAP LISTA FUNKCIÓK ---
-window.addAnime = async () => {
+// --- ALAP LISTA FUNKCIÓK (To Watch / Watched) ---
+window.addAnime = () => {
     const input = document.getElementById('searchInput');
     const val = input.value.trim();
     if (!val) return;
-    
     const isDup = userData.toWatch.some(i => i.toLowerCase() === val.toLowerCase()) || 
                   userData.watched.some(i => i.name.toLowerCase() === val.toLowerCase());
-    if (isDup) return await uiAlert("Ez már szerepel valamelyik listádban!");
+    if (isDup) return alert("Ez már szerepel valamelyik listádban!");
     
     if (currentTab === 'toWatch') userData.toWatch.unshift(val);
     else userData.watched.unshift({ name: val, time: new Date().toLocaleString() });
@@ -167,25 +107,21 @@ window.addAnime = async () => {
     sync();
 };
 
-window.clearCurrentList = async () => {
+window.clearCurrentList = () => {
     const listName = currentTab === 'toWatch' ? 'To Watch' : 'Watched';
-    const conf1 = await uiConfirm(`Biztosan törölsz mindent a(z) ${listName} listából?`, true, "Igen, törlés");
-    if (!conf1) return;
-    
-    const conf2 = await uiConfirm(`VÉGSŐ FIGYELMEZTETÉS: Ezt nem lehet visszavonni!`, true, "Végleges törlés");
-    if (!conf2) return;
-
+    if (!confirm(`FIGYELEM: Biztosan törölsz mindent a(z) ${listName} listából?`)) return;
+    if (!confirm(`VÉGSŐ FIGYELMEZTETÉS: Ezt nem lehet visszavonni. Biztos?`)) return;
     if (currentTab === 'toWatch') userData.toWatch = [];
     else userData.watched = [];
     sync();
 };
 
-// ... [Random picker marad ugyanaz]
-window.pickRandom = async () => {
+window.pickRandom = () => {
     const pool = userData.toWatch;
-    if (pool.length === 0) return await uiAlert("Nincs miből sorsolni a To Watch listában!");
-    lastPickedIndex = Math.floor(Math.random() * pool.length);
-    document.getElementById('random-result').innerText = pool[lastPickedIndex];
+    if (pool.length === 0) return alert("Nincs miből sorsolni a To Watch listában!");
+    const choice = pool[Math.floor(Math.random() * pool.length)];
+    lastPickedIndex = userData.toWatch.indexOf(choice);
+    document.getElementById('random-result').innerText = choice;
     document.getElementById('overlay').style.display = 'flex';
 };
 
@@ -200,20 +136,24 @@ window.moveToWatchedFromRandom = () => {
 
 window.closeOverlay = () => document.getElementById('overlay').style.display = 'none';
 
-// --- ITEM OPTIONS (ToWatch/Watched) ---
+// --- ITEM OPTIONS LOGIKA ---
 window.openOptions = (index, name) => {
     selectedItemIndex = index;
     document.getElementById('options-title').innerText = name;
-    document.getElementById('move-btn').innerHTML = currentTab === 'toWatch' ? '➡️ Áthelyezés ide: Watched' : '⬅️ Vissza ide: To Watch';
+    const moveBtn = document.getElementById('move-btn');
+    moveBtn.innerHTML = currentTab === 'toWatch' ? '➡️ Áthelyezés ide: Watched' : '⬅️ Vissza ide: To Watch';
     document.getElementById('options-modal').style.display = 'flex';
 };
-window.closeOptions = () => { document.getElementById('options-modal').style.display = 'none'; selectedItemIndex = -1; };
 
-window.editItemPrompt = async () => {
+window.closeOptions = () => {
+    document.getElementById('options-modal').style.display = 'none';
+    selectedItemIndex = -1;
+};
+
+window.editItemPrompt = () => {
     if (selectedItemIndex === -1) return;
     const oldName = currentTab === 'toWatch' ? userData.toWatch[selectedItemIndex] : userData.watched[selectedItemIndex].name;
-    const newName = await uiPrompt("Mire szeretnéd átírni?", oldName);
-    
+    const newName = prompt("Mire szeretnéd átírni?", oldName);
     if (newName && newName.trim() !== "" && newName !== oldName) {
         if (currentTab === 'toWatch') userData.toWatch[selectedItemIndex] = newName.trim();
         else userData.watched[selectedItemIndex].name = newName.trim();
@@ -235,10 +175,9 @@ window.moveListItem = () => {
     closeOptions();
 };
 
-window.confirmListDelete = async () => {
+window.confirmDelete = () => {
     if (selectedItemIndex === -1) return;
-    const conf = await uiConfirm("Biztosan törölni szeretnéd ezt az elemet?");
-    if (conf) {
+    if (confirm("Biztosan törölni szeretnéd ezt az elemet?")) {
         if (currentTab === 'toWatch') userData.toWatch.splice(selectedItemIndex, 1);
         else userData.watched.splice(selectedItemIndex, 1);
         sync();
@@ -246,11 +185,52 @@ window.confirmListDelete = async () => {
     closeOptions();
 };
 
-// --- IMPORT / EXPORT (Kivágva a rövidség kedvéért, de maradhat az eredeti ahogy volt, csak az alert-eket cseréld uiAlert-re) ---
+// --- IMPORT / EXPORT ---
+window.importFile = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const lines = e.target.result.split(/\r?\n/);
+        let addedCount = 0;
+        lines.forEach(line => {
+            const name = line.trim();
+            if (!name) return;
+            const exists = userData.toWatch.some(i => i.toLowerCase() === name.toLowerCase()) || 
+                           userData.watched.some(i => i.name.toLowerCase() === name.toLowerCase());
+            if (!exists) {
+                if (currentTab === 'toWatch') userData.toWatch.unshift(name);
+                else userData.watched.unshift({ name: name, time: new Date().toLocaleString() });
+                addedCount++;
+            }
+        });
+        sync();
+        alert(`Sikeresen importálva ${addedCount} új anime a(z) ${currentTab === 'toWatch' ? 'To Watch' : 'Watched'} listába!`);
+        event.target.value = '';
+    };
+    reader.readAsText(file);
+};
+
+window.exportFile = () => {
+    const listToExport = currentTab === 'toWatch' ? userData.toWatch : userData.watched.map(a => a.name);
+    if (listToExport.length === 0) return alert("A jelenlegi lista üres!");
+    const content = listToExport.join('\n');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const listName = currentTab === 'toWatch' ? 'ToWatch' : 'Watched';
+    a.download = `Anime_Tracker_${listName}_${new Date().toLocaleDateString()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+};
 
 // --- LIBRARY / TREE LOGIKA ---
 let targetPathForAdd = null; 
 
+// Rekurzív kereső: megkeresi a fában az adott ID-jű elemet
 function findNodeById(nodes, id) {
     for (let node of nodes) {
         if (node.id === id) return node;
@@ -260,19 +240,6 @@ function findNodeById(nodes, id) {
         }
     }
     return null;
-}
-
-function removeNodeById(nodes, id) {
-    for (let i = 0; i < nodes.length; i++) {
-        if (nodes[i].id === id) {
-            nodes.splice(i, 1);
-            return true;
-        }
-        if (nodes[i].children && nodes[i].children.length > 0) {
-            if (removeNodeById(nodes[i].children, id)) return true;
-        }
-    }
-    return false;
 }
 
 window.openAddNodeModal = (parentId) => {
@@ -290,14 +257,24 @@ window.openAddNodeModal = (parentId) => {
     document.getElementById('add-node-modal').style.display = 'flex';
 };
 
-window.closeAddNodeModal = () => { document.getElementById('add-node-modal').style.display = 'none'; targetPathForAdd = null; };
+window.closeAddNodeModal = () => {
+    document.getElementById('add-node-modal').style.display = 'none';
+    targetPathForAdd = null;
+};
 
-window.confirmAddNode = async () => {
+window.confirmAddNode = () => {
     const type = document.getElementById('node-type-select').value;
     const name = document.getElementById('node-name-input').value.trim();
-    if (!name) return await uiAlert("Kérlek adj meg egy nevet!");
+    
+    if (!name) return alert("Kérlek adj meg egy nevet!");
 
-    const newNode = { id: Date.now().toString(), type: type, name: name, expanded: false, children: [] };
+    const newNode = {
+        id: Date.now().toString(),
+        type: type,
+        name: name,
+        expanded: false,
+        children: []
+    };
 
     if (targetPathForAdd === null) {
         userData.library.push(newNode);
@@ -306,56 +283,38 @@ window.confirmAddNode = async () => {
         if (parentNode) {
             if (!parentNode.children) parentNode.children = [];
             parentNode.children.push(newNode);
-            parentNode.expanded = true; 
+            parentNode.expanded = true; // Nyissuk is ki, ha már adtunk alá valamit
         }
     }
+
     sync();
     closeAddNodeModal();
 };
 
 window.toggleTreeNode = (id) => {
     const node = findNodeById(userData.library, id);
-    if (node) { node.expanded = !node.expanded; sync(); }
-};
-
-window.deleteTreeNode = async (id) => {
-    const node = findNodeById(userData.library, id);
-    if (!node) return;
-
-    // BIZTONSÁGI LOGIKA: 1 vagy 2 lépéses törlés
-    if (node.type === 'Episode') {
-        const conf = await uiConfirm(`Biztosan törlöd ezt az epizódot: ${node.name}?`, true, "Törlés");
-        if (!conf) return;
-    } else {
-        const conf1 = await uiConfirm(`Biztosan törlöd ezt a konténert (${node.name}) és minden benne lévő elemet?`);
-        if (!conf1) return;
-        const conf2 = await uiConfirm(`VIGYÁZAT! Minden alárendelt elem véglegesen elvész. Biztos vagy benne?`, true, "Végleges Törlés");
-        if (!conf2) return;
+    if (node) {
+        node.expanded = !node.expanded;
+        sync(); // Menti az állapotot és újra renderel
     }
-
-    removeNodeById(userData.library, id);
-    sync();
 };
 
+// --- RENDER ---
 function renderTree(nodes) {
     let html = '';
     nodes.forEach(node => {
         const hasChildren = node.children && node.children.length > 0;
         const icon = hasChildren ? (node.expanded ? '▼' : '►') : '•';
-        const safeId = node.id;
         
         html += `
         <div class="tree-item">
             <div class="tree-header">
-                <div class="tree-title-area" onclick="toggleTreeNode('${safeId}')">
+                <div class="tree-title-area" onclick="toggleTreeNode('${node.id}')">
                     <span class="tree-toggle">${icon}</span>
                     <span class="badge">#${node.type.toLowerCase()}</span> 
                     <strong>${node.name}</strong>
                 </div>
-                <div class="tree-actions">
-                    <button class="btn-tree-action add" onclick="openAddNodeModal('${safeId}')">+</button>
-                    <button class="btn-tree-action del" onclick="deleteTreeNode('${safeId}')">🗑</button>
-                </div>
+                <button class="btn-add-child" onclick="openAddNodeModal('${node.id}')">+ Alá</button>
             </div>
             ${hasChildren ? `<div class="tree-children ${node.expanded ? 'expanded' : ''}">${renderTree(node.children)}</div>` : ''}
         </div>`;
