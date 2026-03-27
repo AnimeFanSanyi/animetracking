@@ -1,6 +1,6 @@
 :root {
     --bg: #020617;
-    --bg-alt: #0f172a;
+    --bg-alt: #0f172a; 
     --card: #1e1b4b;
     --text: #f8fafc;
     --text-muted: #94a3b8;
@@ -25,41 +25,39 @@ h1 { text-align: center; color: var(--accent); letter-spacing: 2px; text-transfo
 
 .main-header {
     display: flex; justify-content: space-between; align-items: center;
-    background: rgba(30, 27, 75, 0.6); padding: 12px 18px; border-radius: 16px;
-    border: 1px solid rgba(167, 139, 250, 0.15); backdrop-filter: blur(10px); margin-bottom: 5px;
+    background: rgba(255, 255, 255, 0.05); padding: 15px 20px; border-radius: 12px;
+    margin-bottom: 20px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
 }
+#user-display { font-size: 14px; color: var(--text-muted); }
+#username-text { font-weight: bold; color: var(--accent); }
+#logout-btn { background: var(--danger); padding: 8px 15px; font-size: 14px; margin: 0; width: auto; }
 
-#user-display { color: var(--text-muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; }
-#username-text { color: var(--accent); font-weight: bold; }
-
-#logout-btn {
-    width: auto; padding: 8px 16px; margin: 0; font-size: 13px;
-    background: rgba(167, 139, 250, 0.05); color: var(--accent);
-    border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 10px; font-weight: bold; transition: all 0.3s ease;
+.btn-random {
+    background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+    color: white; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;
+    box-shadow: 0 4px 15px rgba(167, 139, 250, 0.4); margin-bottom: 25px; transition: 0.3s;
 }
-#logout-btn:hover { background: rgba(167, 139, 250, 0.15); border-color: var(--accent); box-shadow: 0 0 10px rgba(167, 139, 250, 0.2); }
+.btn-random:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(167, 139, 250, 0.6); }
 
-#login-btn { 
-    background: linear-gradient(45deg, var(--accent), var(--accent-dark)); color: white; font-weight: bold; 
-    display: flex; align-items: center; justify-content: center; gap: 10px; margin: 50px auto; width: 80%;
-    cursor: pointer; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+.input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+input {
+    flex: 1; padding: 14px; border-radius: 12px; border: 1px solid rgba(167, 139, 250, 0.3);
+    background: rgba(15, 23, 42, 0.8); color: var(--text); outline: none; transition: 0.3s;
 }
+input:focus { border-color: var(--accent); background: rgba(15, 23, 42, 1); }
+button {
+    background: var(--accent-dark); color: white; border: none; padding: 14px; border-radius: 12px;
+    cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; transition: 0.2s;
+}
+button:hover { opacity: 0.9; }
+.btn-clear { background: transparent; border: 1px solid var(--danger); color: var(--danger); margin-bottom: 20px; }
+.btn-secondary { background: rgba(167, 139, 250, 0.1); border: 1px dashed var(--accent); color: var(--accent); font-size: 13px; padding: 10px; }
 
-.input-group { display: flex; gap: 10px; }
-.input-group input { flex: 1; }
-.input-group button { width: auto; padding: 14px 20px; }
-
-input, button { width: 100%; padding: 14px; margin: 8px 0; border-radius: 12px; border: none; font-size: 16px; box-sizing: border-box; cursor: pointer; }
-input { background: rgba(255, 255, 255, 0.05); color: white; border: 1px solid var(--accent); cursor: text; }
-
-.btn-add { background: var(--accent); color: var(--bg); font-weight: bold; }
-.btn-random { background: linear-gradient(45deg, var(--accent), var(--accent-dark)); color: white; font-weight: bold; font-size: 18px; box-shadow: 0 0 20px rgba(167, 139, 250, 0.3); margin-bottom: 20px; }
-
-.btn-row { display: flex; gap: 10px; margin: 8px 0; }
-.btn-secondary { flex: 1; background: rgba(167, 139, 250, 0.1); color: var(--accent); border: 1px solid var(--accent); font-size: 14px; padding: 10px; }
-
-.tabs { display: flex; gap: 10px; margin: 20px 0 10px 0; }
-.tab { flex: 1; background: var(--bg-alt); color: var(--text-muted); padding: 12px; text-align: center; border-radius: 8px; cursor: pointer; border: 1px solid transparent; transition: 0.2s; }
+.tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+.tab {
+    flex: 1; text-align: center; padding: 12px; background: rgba(30, 27, 75, 0.5);
+    border-radius: 12px; cursor: pointer; color: var(--text-muted); transition: 0.2s;
+}
 .tab.active { background: var(--card); color: var(--accent); border: 1px solid var(--accent); font-weight: bold; }
 
 .list-item {
@@ -67,25 +65,94 @@ input { background: rgba(255, 255, 255, 0.05); color: white; border: 1px solid v
     display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(5px);
 }
 
-.btn-options { background: transparent; color: var(--text); font-size: 24px; font-weight: bold; width: 40px; padding: 0; margin: 0; border: none; opacity: 0.7; transition: 0.2s; }
+.btn-options {
+    background: transparent; color: var(--text); font-size: 24px; font-weight: bold;
+    width: 40px; padding: 0; margin: 0; border: none; opacity: 0.7; transition: 0.2s;
+}
 .btn-options:hover { opacity: 1; color: var(--accent); }
 
-#overlay, .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.90); z-index: 100; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(3px); }
+#overlay, .modal {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(2, 6, 23, 0.90); z-index: 100; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(3px);
+}
+
 .modal { z-index: 200; }
-.modal-content { background: var(--card); padding: 25px; border-radius: 16px; width: 85%; max-width: 320px; border: 1px solid var(--accent); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-.modal-content button { margin: 6px 0; font-size: 15px; }
+.modal-content {
+    background: var(--card); padding: 25px; border-radius: 16px; width: 90%; max-width: 350px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid rgba(167, 139, 250, 0.2);
+}
 
-#random-result { font-size: 32px; font-weight: bold; text-align: center; margin: 20px 0; text-shadow: 0 0 15px var(--accent); }
+#random-result {
+    font-size: 24px; font-weight: bold; margin-bottom: 25px; padding: 20px;
+    background: rgba(167, 139, 250, 0.1); border-radius: 12px; border: 1px dashed var(--accent);
+}
 
-.btn-clear { background: transparent; color: var(--danger); border: 1px solid var(--danger); font-size: 14px; margin-bottom: 20px; opacity: 0.8; }
-.btn-clear:hover { background: var(--danger); color: white; opacity: 1; }
+/* --- ARCHÍVUM, TAB 1 & TAB 2 STÍLUSOK --- */
+.hashtag {
+    color: #d946ef; font-size: 12px; font-weight: bold; margin-left: 8px;
+    background: rgba(217, 70, 239, 0.1); padding: 2px 6px; border-radius: 6px;
+}
+.custom-select {
+    width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid var(--accent);
+    background: rgba(0,0,0,0.3); color: white; font-size: 16px; outline: none;
+}
+.custom-select option { background: var(--bg); color: white; }
 
-/* --- LIBRARY / TREE STYLES --- */
-.tree-item { background: rgba(30, 27, 75, 0.3); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 8px; margin-bottom: 6px; padding: 10px; display: flex; flex-direction: column; }
-.tree-header { display: flex; justify-content: space-between; align-items: center; }
-.tree-title-area { display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1;}
-.tree-toggle { color: var(--accent); width: 20px; text-align: center; font-weight: bold; font-family: monospace;}
-.badge { background: var(--accent-dark); color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px; }
-.tree-children { border-left: 2px solid rgba(167, 139, 250, 0.3); padding-left: 10px; margin-top: 8px; display: none; }
-.tree-children.expanded { display: block; }
-.btn-add-child { background: transparent; color: var(--success); border: 1px solid var(--success); padding: 4px 8px; font-size: 12px; border-radius: 6px; width: auto; margin: 0; }
+.section-title {
+    color: var(--accent); border-bottom: 1px solid rgba(167, 139, 250, 0.3);
+    padding-bottom: 5px; margin-top: 15px; margin-bottom: 10px;
+}
+.sub-item-list { margin-bottom: 10px; }
+
+.sub-item {
+    margin-left: 15px; border-left: 2px solid var(--accent-dark); padding-left: 10px;
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+    background: rgba(0,0,0,0.2); padding-top: 5px; padding-bottom: 5px; border-radius: 0 6px 6px 0;
+}
+.sub-item span { flex: 1; cursor: pointer; }
+.sub-item span:hover { color: var(--accent); }
+
+.btn-icon {
+    background: transparent; border: none; color: var(--text-muted); cursor: pointer;
+    font-size: 16px; padding: 5px; transition: 0.2s; width: auto; margin: 0;
+}
+.btn-icon:hover { color: var(--danger); }
+
+/* TREE VIEW (Hierarchia) Stílusok */
+.tree-node {
+    margin-top: 5px;
+    position: relative;
+}
+.tree-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+}
+.tree-header:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+.tree-text {
+    flex: 1;
+    cursor: pointer;
+    font-size: 14px;
+}
+.tree-text:hover {
+    color: var(--accent);
+}
+.tree-actions {
+    display: flex;
+    gap: 5px;
+}
+.tree-actions .btn-icon {
+    font-size: 14px;
+    padding: 2px;
+}
+.tree-children {
+    margin-left: 15px;
+    border-left: 1px dashed rgba(167, 139, 250, 0.3);
+    padding-left: 10px;
+}
