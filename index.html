@@ -64,7 +64,7 @@
             <h3 id="options-title" style="color: var(--text); margin-top: 0;">Anime Name</h3>
             <button onclick="editItemPrompt()" style="background: var(--accent-dark);">✏️ Szerkesztés</button>
             <button id="move-btn" onclick="moveListItem()" style="background: #0ea5e9;">🔄 Áthelyezés</button>
-            <button onclick="confirmListDelete()" style="background: var(--danger);">🗑️ Törlés</button>
+            <button onclick="confirmDelete()" style="background: var(--danger);">🗑️ Törlés</button>
             <button onclick="closeOptions()" style="background: transparent; border: 1px solid #475569; margin-top: 15px;">Mégse</button>
         </div>
     </div>
@@ -80,28 +80,15 @@
                 <option value="Season">Season</option>
                 <option value="Arc">Arc</option>
                 <option value="Cour">Cour</option>
+                <option value="Episode">Episode</option>
                 <option value="Movie">Movie</option>
                 <option value="OVA">OVA</option>
-                <option value="Episode">Episode</option>
             </select>
             
             <input type="text" id="node-name-input" placeholder="Elem neve (pl. Season 1, Naruto...)" style="margin-bottom: 15px;">
             
             <button onclick="confirmAddNode()" style="background: var(--success);">✔️ Hozzáadás</button>
             <button onclick="closeAddNodeModal()" style="background: transparent; border: 1px solid #475569; margin-top: 5px;">Mégse</button>
-        </div>
-    </div>
-
-    <div id="custom-dialog-modal" class="modal" style="z-index: 9999;">
-        <div class="modal-content" style="text-align: center;">
-            <h3 id="cd-title" style="color: var(--accent); margin-top: 0;">Figyelem</h3>
-            <p id="cd-message" style="margin-bottom: 20px; color: var(--text);"></p>
-            <input type="text" id="cd-input" style="display:none; margin-bottom: 15px;" placeholder="Írd be ide...">
-            
-            <div style="display: flex; gap: 10px; justify-content: center;">
-                <button id="cd-btn-cancel" style="background: transparent; border: 1px solid #475569; display:none;">Mégse</button>
-                <button id="cd-btn-confirm" style="background: var(--accent-dark);">Rendben</button>
-            </div>
         </div>
     </div>
 </body>
