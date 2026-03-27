@@ -24,14 +24,14 @@
             <button id="logout-btn">Logout</button>
         </header>
 
-        <button class="btn-random" onclick="pickRandom()">🎲 PICK RANDOM ANIME</button>
+        <button id="btn-random-main" class="btn-random" onclick="pickRandom()">🎲 PICK RANDOM ANIME</button>
         
         <div class="input-group">
             <input type="text" id="searchInput" placeholder="Search or add anime..." onkeyup="handleSearch()">
-            <button class="btn-add" onclick="addAnime()">+ Add</button>
+            <button id="btn-add-main" class="btn-add" onclick="addAnime()">+ Add</button>
         </div>
 
-        <div class="import-export-section">
+        <div id="import-export-section" class="import-export-section">
             <div class="btn-row">
                 <button class="btn-secondary" onclick="document.getElementById('fileInput').click()">📁 Import</button>
                 <button class="btn-secondary" onclick="exportFile()">💾 Export</button>
@@ -42,9 +42,10 @@
         <div class="tabs">
             <div id="tabToWatch" class="tab active" onclick="switchTab('toWatch')">To Watch (<span id="countTW">0</span>)</div>
             <div id="tabWatched" class="tab" onclick="switchTab('watched')">Watched (<span id="countW">0</span>)</div>
+            <div id="tabLibrary" class="tab" onclick="switchTab('library')">Library</div>
         </div>
 
-        <button class="btn-clear" onclick="clearCurrentList()">🗑️ Wipe Current List</button>
+        <button id="btn-clear-main" class="btn-clear" onclick="clearCurrentList()">🗑️ Wipe Current List</button>
 
         <div id="listContainer"></div>
     </div>
@@ -63,8 +64,44 @@
             <h3 id="options-title" style="color: var(--text); margin-top: 0;">Anime Name</h3>
             <button onclick="editItemPrompt()" style="background: var(--accent-dark);">✏️ Szerkesztés</button>
             <button id="move-btn" onclick="moveListItem()" style="background: #0ea5e9;">🔄 Áthelyezés</button>
-            <button onclick="confirmDelete()" style="background: var(--danger);">🗑️ Törlés</button>
+            <button onclick="confirmListDelete()" style="background: var(--danger);">🗑️ Törlés</button>
             <button onclick="closeOptions()" style="background: transparent; border: 1px solid #475569; margin-top: 15px;">Mégse</button>
+        </div>
+    </div>
+
+    <div id="add-node-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: var(--accent); margin-top: 0;">Új elem hozzáadása</h3>
+            <p id="add-node-subtitle" style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px;">Ide: Gyökérkönyvtár</p>
+            
+            <select id="node-type-select" style="width: 100%; padding: 10px; margin-bottom: 10px; background: rgba(255, 255, 255, 0.05); color: white; border: 1px solid var(--accent); border-radius: 8px;">
+                <option value="Anime">Anime (Fő)</option>
+                <option value="Manga">Manga (Fő)</option>
+                <option value="Season">Season</option>
+                <option value="Arc">Arc</option>
+                <option value="Cour">Cour</option>
+                <option value="Movie">Movie</option>
+                <option value="OVA">OVA</option>
+                <option value="Episode">Episode</option>
+            </select>
+            
+            <input type="text" id="node-name-input" placeholder="Elem neve (pl. Season 1, Naruto...)" style="margin-bottom: 15px;">
+            
+            <button onclick="confirmAddNode()" style="background: var(--success);">✔️ Hozzáadás</button>
+            <button onclick="closeAddNodeModal()" style="background: transparent; border: 1px solid #475569; margin-top: 5px;">Mégse</button>
+        </div>
+    </div>
+
+    <div id="custom-dialog-modal" class="modal" style="z-index: 9999;">
+        <div class="modal-content" style="text-align: center;">
+            <h3 id="cd-title" style="color: var(--accent); margin-top: 0;">Figyelem</h3>
+            <p id="cd-message" style="margin-bottom: 20px; color: var(--text);"></p>
+            <input type="text" id="cd-input" style="display:none; margin-bottom: 15px;" placeholder="Írd be ide...">
+            
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="cd-btn-cancel" style="background: transparent; border: 1px solid #475569; display:none;">Mégse</button>
+                <button id="cd-btn-confirm" style="background: var(--accent-dark);">Rendben</button>
+            </div>
         </div>
     </div>
 </body>
