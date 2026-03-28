@@ -416,7 +416,7 @@ window.saveArchiveItem = () => {
 
 // --- ARCHIVE: 1. FÜL LOGIKA (Manga, OVA, Movie) ---
 window.renderArchSubItems = () => {
-    const categories = ['manga', 'ova', 'movie', 'sequel anime'];
+    const categories = ['manga', 'ova', 'movie'];
     categories.forEach(cat => {
         const container = document.getElementById(`arch-${cat}-list`);
         container.innerHTML = '';
@@ -437,6 +437,15 @@ window.renderArchSubItems = () => {
             };
             container.appendChild(div);
         });
+    });
+};
+
+window.openSubItemPrompt = (category) => {
+    openCustomPrompt(`${category.toUpperCase()} hozzáadása:`, "", (val) => {
+        if (val && val.trim() !== '') {
+            currentArchiveItem[category].push(val.trim());
+            renderArchSubItems();
+        }
     });
 };
 
