@@ -251,7 +251,9 @@ window.switchTab = (t) => {
 
 window.render = () => {
     const container = document.getElementById('listContainer');
-    const search = document.getElementById('searchInput').value.toLowerCase();
+    // Szétszedjük a keresési szöveget szóközök mentén, hogy több tage-t is kezelni tudjunk
+    const searchInput = document.getElementById('searchInput').value.toLowerCase();
+    const searchTerms = searchInput.split(/\s+/).filter(t => t.length > 0); 
     container.innerHTML = '';
     
     let list = [];
@@ -265,26 +267,31 @@ window.render = () => {
 
     list.forEach((item, index) => {
         const name = currentTab === 'toWatch' ? item : item.name;
-        let isMatch = false;
-
-        // FIXED SEARCH LOGIC: Now checks tags on the Archive tab
+        
+        // Összerakjuk a kereshető szöveget a névből és a tagekből
+        let searchableText = name.toLowerCase();
         if (currentTab === 'archive') {
-            const tag = `#${item.type}`.toLowerCase();
-            isMatch = name.toLowerCase().includes(search) || tag.includes(search);
-        } else {
-            isMatch = name.toLowerCase().includes(search);
+            searchableText += ` #${item.type.toLowerCase()} ${item.status ? item.status.toLowerCase() : ''}`;
         }
 
-        if (isMatch) {
+        // Akkor jelenítjük meg, ha a keresőbe írt MINDEN szó/tag szerepel a fenti szövegben
+        const matchesSearch = searchTerms.length === 0 || searchTerms.every(term => searchableText.includes(term));
+
+        if (matchesSearch) {
             const div = document.createElement('div');
             div.className = 'list-item';
             const safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
             
             if (currentTab === 'archive') {
+                // Generáljuk a státusz taget (a '#' jelet levágjuk a CSS classhoz)
+                const statusClass = item.status ? item.status.replace('#', '') : 'ended';
+                const statusTag = item.status ? `<span class="hashtag tag-${statusClass}">${item.status}</span>` : '';
+                
                 div.innerHTML = `
-                    <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; display: flex; align-items: center;">
+                    <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
                         <strong>${name}</strong>
                         <span class="hashtag">#${item.type}</span>
+                        ${statusTag}
                     </div>
                     <div style="display: flex; gap: 5px;">
                         <button class="btn-icon" style="color: var(--accent);" onclick="openArchiveModal(${index})">✎</button>
@@ -366,30 +373,27 @@ window.openArchiveModal = (index = -1) => {
         isEditingArchive = false;
         editingArchiveIndex = -1;
         document.getElementById('archive-modal-title').innerText = "Új Archív Elem";
-        currentArchiveItem = { name: '', type: 'Anime', manga: [], ova: [], movie: [], hierarchy: [] };
+        currentArchiveItem = { name: '', type: 'Anime', status: '#ended', manga: [], ova: [], movie: [], hierarchy: [] };
     } else {
         isEditingArchive = true;
         editingArchiveIndex = index;
-        document.getElementById('archive-modal-title').innerText = "Archív Elem Szerkesztése";
         currentArchiveItem = JSON.parse(JSON.stringify(userData.archive[index])); 
         
         if(!currentArchiveItem.manga) currentArchiveItem.manga = [];
         if(!currentArchiveItem.ova) currentArchiveItem.ova = [];
         if(!currentArchiveItem.movie) currentArchiveItem.movie = [];
         if(!currentArchiveItem.hierarchy) currentArchiveItem.hierarchy = [];
-
-        // HIERARCHY FIX: Collapse everything on open!
-        collapseAllNodes(currentArchiveItem.hierarchy);
+        if(!currentArchiveItem.status) currentArchiveItem.status = '#ended'; // Visszamenőleges kompatibilitás a régebbi elemekkel
     }
 
     document.getElementById('arch-name').value = currentArchiveItem.name;
     document.getElementById('arch-type').value = currentArchiveItem.type;
+    document.getElementById('arch-status').value = currentArchiveItem.status;
     
     renderArchSubItems();
     renderTree(); 
     document.getElementById('archive-modal').style.display = 'flex';
 };
-
 window.closeArchiveModal = () => {
     document.getElementById('archive-modal').style.display = 'none';
     currentArchiveItem = null;
@@ -401,6 +405,7 @@ window.saveArchiveItem = () => {
 
     currentArchiveItem.name = name;
     currentArchiveItem.type = document.getElementById('arch-type').value;
+    currentArchiveItem.status = document.getElementById('arch-status').value;
 
     if (isEditingArchive) userData.archive[editingArchiveIndex] = currentArchiveItem;
     else userData.archive.unshift(currentArchiveItem);
