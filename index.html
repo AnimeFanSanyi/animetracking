@@ -29,7 +29,7 @@
         <button onclick="addAnime()" style="background: var(--success); margin-bottom: 15px; font-size: 16px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">➕ Új Hozzáadása</button>
         
         <div class="input-group" style="margin-bottom: 20px;">
-            <input type="text" id="searchInput" placeholder="Keresés a listában...">
+            <input type="text" id="searchInput" placeholder="Keresés a listában (pl. cím, #anime, #ended)...">
         </div>
 
         <div class="tabs">
@@ -95,11 +95,21 @@
 
             <div id="arch-tab1-content">
                 <input type="text" id="arch-name" placeholder="Főcím (pl. Naruto)..." style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--accent); background: rgba(0,0,0,0.3); color: white; margin-bottom: 10px;">
-                <select id="arch-type" class="custom-select">
-                    <option value="Anime">#Anime</option>
-                    <option value="Manga">#Manga</option>
-                    <option value="StandaloneMovie">#StandaloneMovie</option>
-                </select>
+                
+                <div style="display: flex; gap: 10px;">
+                    <select id="arch-type" class="custom-select" style="flex: 1;">
+                        <option value="Anime">#Anime</option>
+                        <option value="Manga">#Manga</option>
+                        <option value="StandaloneMovie">#StandaloneMovie</option>
+                    </select>
+
+                    <select id="arch-status" class="custom-select" style="flex: 1;">
+                        <option value="#ended" style="color: #f43f5e;">#ended</option>
+                        <option value="#continue-sometime" style="color: #38bdf8;">#continue-sometime</option>
+                        <option value="#half-watched" style="color: #f97316;">#half-watched</option>
+                        <option value="#continue-soon" style="color: #eab308;">#continue-soon</option>
+                    </select>
+                </div>
 
                 <hr style="border-color: rgba(167, 139, 250, 0.2); margin: 15px 0;">
                 
@@ -114,6 +124,10 @@
                 <h4 class="section-title">Movie</h4>
                 <div id="arch-movie-list" class="sub-item-list"></div>
                 <button class="btn-secondary" onclick="openSubItemPrompt('movie')">+ Movie hozzáadása</button>
+
+                <h4 class="section-title">Sequel Anime</h4>
+                <div id="arch-sequel-list" class="sub-item-list"></div>
+                <button class="btn-secondary" onclick="openSubItemPrompt('sequel')">+ Sequel hozzáadása</button>
             </div>
 
             <div id="arch-tab2-content" style="display:none;">
@@ -139,7 +153,11 @@
                 <button onclick="addTreeNode('Part')" style="background: #312e81;">Part</button>
                 <button onclick="addTreeNode('Arc')" style="background: #312e81;">Arc</button>
                 <button onclick="addTreeNode('Cour')" style="background: #312e81;">Cour</button>
+                <button onclick="addTreeNode('Movie-Part')" style="background: #312e81;">Movie-Part</button>
+                <button onclick="addTreeNode('Sequel-Anime')" style="background: #312e81;">Sequel-Anime</button>
+                <hr style="border-color: rgba(167, 139, 250, 0.2); width: 100%; margin: 5px 0;">
                 <button onclick="addTreeNode('Episodes')" style="background: #059669;">Episodes (Levél)</button>
+                <button onclick="addTreeNode('Movie')" style="background: #059669;">Movie (Levél)</button>
             </div>
             <button onclick="closeTreeNodeSelector()" style="background: transparent; border: 1px solid #475569; margin-top: 15px;">Mégse</button>
         </div>
