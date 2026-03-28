@@ -1,6 +1,17 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { 
+    getAuth, 
+    GoogleAuthProvider, 
+    signInWithRedirect,   // Changed from signInWithPopup
+    getRedirectResult,     // Added for handling the return
+    onAuthStateChanged, 
+    signOut 
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// --- MOBILE DEBUGGER ---
+// If the app crashes on your phone, this will show an alert with the error message.
+window.onerror = (msg, url, line) => alert(`Error: ${msg}\nLine: ${line}`);
 
 const firebaseConfig = {
   apiKey: "AIzaSyCq7skNHlN6mF45b-TjqNyJJ-OBwGu5YBs",
@@ -42,6 +53,19 @@ let editingArchiveIndex = -1;
 let targetTreePath = ''; 
 
 // --- AUTH & SYNC ---
+
+// 1. Handle the redirect result when the user comes back from Google
+getRedirectResult(auth)
+    .then((result) => {
+        if (result?.user) {
+            console.log("Redirect login successful");
+        }
+    })
+    .catch((error) => {
+        console.error("Auth Error:", error);
+        alert("Login Error: " + error.message);
+    });
+
 onAuthStateChanged(auth, user => {
     if (user) {
         currentUser = user;
@@ -55,7 +79,8 @@ onAuthStateChanged(auth, user => {
     }
 });
 
-document.getElementById('login-btn').onclick = () => signInWithPopup(auth, provider);
+// 2. Updated login button to use Redirect
+document.getElementById('login-btn').onclick = () => signInWithRedirect(auth, provider);
 document.getElementById('logout-btn').onclick = () => signOut(auth);
 
 async function loadUserData() {
@@ -78,7 +103,7 @@ async function sync() {
 }
 
 // --- EGYEDI PROMPT LOGIKA ---
-function openCustomPrompt(title, defaultValue, callback) {
+window.openCustomPrompt = (title, defaultValue, callback) => {
     document.getElementById('custom-prompt-title').innerText = title;
     const input = document.getElementById('custom-prompt-input');
     input.value = defaultValue;
@@ -86,12 +111,12 @@ function openCustomPrompt(title, defaultValue, callback) {
     
     document.getElementById('custom-prompt-modal').style.display = 'flex';
     input.focus();
-}
+};
 
-function closeCustomPrompt() {
+window.closeCustomPrompt = () => {
     document.getElementById('custom-prompt-modal').style.display = 'none';
     customPromptCallback = null;
-}
+};
 
 document.getElementById('custom-prompt-btn').onclick = () => {
     const val = document.getElementById('custom-prompt-input').value;
@@ -100,7 +125,7 @@ document.getElementById('custom-prompt-btn').onclick = () => {
 };
 
 // --- ALAP FUNKCIÓK (To Watch / Watched) ---
-function addAnime() {
+window.addAnime = () => {
     if (currentTab === 'archive') {
         openArchiveModal(); 
         return;
@@ -129,17 +154,19 @@ function addAnime() {
         document.getElementById('searchInput').value = ''; 
         sync();
     });
-}
+};
 
 document.getElementById('searchInput').addEventListener('input', function () {
     render(); 
 });
 
 document.getElementById('searchInput').addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') e.preventDefault(); 
+    if (e.key === 'Enter') {
+        e.preventDefault(); 
+    }
 });
 
-function clearCurrentList() {
+window.clearCurrentList = () => {
     openCustomPrompt("Biztos törlöd a jelenlegi listát? Írd be: 'Igen'", "", (val) => {
         if (val && val.toLowerCase() === 'igen') {
             if (currentTab === 'toWatch') userData.toWatch = [];
@@ -148,9 +175,9 @@ function clearCurrentList() {
             sync();
         }
     });
-}
+};
 
-function pickRandom() {
+window.pickRandom = () => {
     if (userData.toWatch.length === 0) {
         openCustomPrompt("Hiba", "A To Watch lista üres!", () => {});
         return;
@@ -163,21 +190,19 @@ function pickRandom() {
     lastPickedIndex = randomIndex;
     document.getElementById('random-result').innerText = userData.toWatch[randomIndex];
     document.getElementById('overlay').style.display = 'flex';
-}
+};
 
-function closeOverlay() {
-    document.getElementById('overlay').style.display = 'none';
-}
+window.closeOverlay = () => document.getElementById('overlay').style.display = 'none';
 
-function moveToWatchedFromRandom() {
+window.moveToWatchedFromRandom = () => {
     const item = userData.toWatch.splice(lastPickedIndex, 1)[0];
     userData.watched.unshift({ name: item, time: new Date().toLocaleString() });
     sync();
     closeOverlay();
-}
+};
 
 // --- OPCIÓK MODAL (To Watch / Watched) ---
-function openOptions(index, name) {
+window.openOptions = (index, name) => {
     selectedItemIndex = index;
     document.getElementById('options-title').innerText = name;
     
@@ -185,13 +210,10 @@ function openOptions(index, name) {
     moveBtn.innerText = currentTab === 'toWatch' ? '🔄 Áthelyezés Watched-be' : '🔄 Áthelyezés To Watch-ba';
     
     document.getElementById('options-modal').style.display = 'flex';
-}
+};
+window.closeOptions = () => document.getElementById('options-modal').style.display = 'none';
 
-function closeOptions() {
-    document.getElementById('options-modal').style.display = 'none';
-}
-
-function editItemPrompt() {
+window.editItemPrompt = () => {
     const oldVal = currentTab === 'toWatch' ? userData.toWatch[selectedItemIndex] : userData.watched[selectedItemIndex].name;
     openCustomPrompt("Szerkesztés:", oldVal, (newVal) => {
         if (newVal && newVal.trim() !== '') {
@@ -201,9 +223,9 @@ function editItemPrompt() {
         }
     });
     closeOptions();
-}
+};
 
-function moveListItem() {
+window.moveListItem = () => {
     if (currentTab === 'toWatch') {
         const item = userData.toWatch.splice(selectedItemIndex, 1)[0];
         userData.watched.unshift({ name: item, time: new Date().toLocaleString() });
@@ -213,29 +235,27 @@ function moveListItem() {
     }
     sync();
     closeOptions();
-}
+};
 
-function confirmDelete() {
+window.confirmDelete = () => {
     if (currentTab === 'toWatch') userData.toWatch.splice(selectedItemIndex, 1);
     else userData.watched.splice(selectedItemIndex, 1);
     sync();
     closeOptions();
-}
+};
 
 // --- RENDER (Főképernyő) ---
-function switchTab(t) {
+window.switchTab = (t) => {
     currentTab = t;
     document.getElementById('tabToWatch').classList.toggle('active', t === 'toWatch');
     document.getElementById('tabWatched').classList.toggle('active', t === 'watched');
     document.getElementById('tabArchive').classList.toggle('active', t === 'archive');
     render();
-}
+};
 
-function render() {
+window.render = () => {
     const container = document.getElementById('listContainer');
-    const rawSearch = document.getElementById('searchInput').value.toLowerCase();
-    const searchTerms = rawSearch.split(/\s+/).filter(t => t); 
-
+    const search = document.getElementById('searchInput').value.toLowerCase();
     container.innerHTML = '';
     
     let list = [];
@@ -249,38 +269,16 @@ function render() {
 
     list.forEach((item, index) => {
         const name = currentTab === 'toWatch' ? item : item.name;
-        
-        let isMatch = true;
-        if (currentTab === 'archive' && searchTerms.length > 0) {
-            isMatch = searchTerms.every(term => {
-                return name.toLowerCase().includes(term) ||
-                       ('#' + (item.type || '').toLowerCase()).includes(term) ||
-                       ((item.status || '').toLowerCase()).includes(term);
-            });
-        } 
-        else if (searchTerms.length > 0) {
-            isMatch = name.toLowerCase().includes(rawSearch);
-        }
-
-        if (isMatch) {
+        if (name.toLowerCase().includes(search)) {
             const div = document.createElement('div');
             div.className = 'list-item';
             const safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
             
             if (currentTab === 'archive') {
-                let statusClass = '';
-                if (item.status === '#ended') statusClass = 'tag-ended';
-                else if (item.status === '#continue-sometime') statusClass = 'tag-continue-sometime';
-                else if (item.status === '#half-watched') statusClass = 'tag-half-watched';
-                else if (item.status === '#continue-soon') statusClass = 'tag-continue-soon';
-
-                const statusHtml = item.status ? `<span class="hashtag ${statusClass}">${item.status}</span>` : '';
-
                 div.innerHTML = `
-                    <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
+                    <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; display: flex; align-items: center;">
                         <strong>${name}</strong>
                         <span class="hashtag">#${item.type}</span>
-                        ${statusHtml}
                     </div>
                     <div style="display: flex; gap: 5px;">
                         <button class="btn-icon" style="color: var(--accent);" onclick="openArchiveModal(${index})">✎</button>
@@ -299,17 +297,17 @@ function render() {
             container.appendChild(div);
         }
     });
-}
+};
 
 // --- ARCHIVE: 3-LÉPCSŐS TÖRLÉS ---
-function startDelete(index) {
+window.startDelete = (index) => {
     deleteTargetIndex = index;
     deleteStep = 0;
     updateDeleteModal();
     document.getElementById('delete-modal').style.display = 'flex';
-}
+};
 
-function updateDeleteModal() {
+window.updateDeleteModal = () => {
     document.getElementById('delete-msg').innerText = deleteMessages[deleteStep];
     const btn = document.getElementById('btn-confirm-delete');
     if (deleteStep === 2) {
@@ -319,9 +317,9 @@ function updateDeleteModal() {
         btn.innerText = "Tovább";
         btn.style.boxShadow = "none";
     }
-}
+};
 
-function processDeleteStep() {
+window.processDeleteStep = () => {
     deleteStep++;
     if (deleteStep < 3) {
         updateDeleteModal();
@@ -330,77 +328,72 @@ function processDeleteStep() {
         sync();
         cancelDelete();
     }
-}
+};
 
-function cancelDelete() {
+window.cancelDelete = () => {
     document.getElementById('delete-modal').style.display = 'none';
     deleteTargetIndex = -1;
     deleteStep = 0;
-}
+};
 
 // --- ARCHIVE: ADD / EDIT MODAL ---
-function switchArchTab(num) {
+window.switchArchTab = (num) => {
     document.getElementById('archTab1').classList.toggle('active', num === 1);
     document.getElementById('archTab2').classList.toggle('active', num === 2);
     document.getElementById('arch-tab1-content').style.display = num === 1 ? 'block' : 'none';
     document.getElementById('arch-tab2-content').style.display = num === 2 ? 'block' : 'none';
-}
+};
 
-function openArchiveModal(index = -1) {
+window.openArchiveModal = (index = -1) => {
     switchArchTab(1);
     
     if (index === -1) {
         isEditingArchive = false;
         editingArchiveIndex = -1;
         document.getElementById('archive-modal-title').innerText = "Új Archív Elem";
-        currentArchiveItem = { name: '', type: 'Anime', status: '#ended', manga: [], ova: [], movie: [], sequel: [], hierarchy: [] };
+        currentArchiveItem = { name: '', type: 'Anime', manga: [], ova: [], movie: [], hierarchy: [] };
     } else {
         isEditingArchive = true;
         editingArchiveIndex = index;
+        document.getElementById('archive-modal-title').innerText = "Archív Elem Szerkesztése";
         currentArchiveItem = JSON.parse(JSON.stringify(userData.archive[index])); 
         
         if(!currentArchiveItem.manga) currentArchiveItem.manga = [];
         if(!currentArchiveItem.ova) currentArchiveItem.ova = [];
         if(!currentArchiveItem.movie) currentArchiveItem.movie = [];
-        if(!currentArchiveItem.sequel) currentArchiveItem.sequel = [];
         if(!currentArchiveItem.hierarchy) currentArchiveItem.hierarchy = [];
-        if(!currentArchiveItem.status) currentArchiveItem.status = '#ended';
-
-        document.getElementById('archive-modal-title').innerText = "Archív Elem Szerkesztése";
     }
 
     document.getElementById('arch-name').value = currentArchiveItem.name;
     document.getElementById('arch-type').value = currentArchiveItem.type;
-    document.getElementById('arch-status').value = currentArchiveItem.status;
     
     renderArchSubItems();
     renderTree(); 
     document.getElementById('archive-modal').style.display = 'flex';
-}
+};
 
-function closeArchiveModal() {
+window.closeArchiveModal = () => {
     document.getElementById('archive-modal').style.display = 'none';
     currentArchiveItem = null;
-}
+};
 
-function saveArchiveItem() {
+window.saveArchiveItem = () => {
     const name = document.getElementById('arch-name').value.trim();
     if (!name) return openCustomPrompt("Hiba", "A cím nem lehet üres!", () => {});
 
     currentArchiveItem.name = name;
     currentArchiveItem.type = document.getElementById('arch-type').value;
-    currentArchiveItem.status = document.getElementById('arch-status').value;
 
     if (isEditingArchive) userData.archive[editingArchiveIndex] = currentArchiveItem;
     else userData.archive.unshift(currentArchiveItem);
 
     sync();
     closeArchiveModal();
-}
+};
 
-// --- ARCHIVE: 1. FÜL LOGIKA ---
-function renderArchSubItems() {
-    const categories = ['manga', 'ova', 'movie', 'sequel'];
+// --- ARCHIVE: 1. FÜL LOGIKA (Manga, OVA, Movie) ---
+window.renderArchSubItems = () => {
+    const categories = ['manga', 'ova', 'movie'];
     categories.forEach(cat => {
         const container = document.getElementById(`arch-${cat}-list`);
         container.innerHTML = '';
@@ -422,23 +415,23 @@ function renderArchSubItems() {
             container.appendChild(div);
         });
     });
-}
+};
 
-function openSubItemPrompt(category) {
+window.openSubItemPrompt = (category) => {
     openCustomPrompt(`${category.toUpperCase()} hozzáadása:`, "", (val) => {
         if (val && val.trim() !== '') {
             currentArchiveItem[category].push(val.trim());
             renderArchSubItems();
         }
     });
-}
+};
 
-function deleteArchSubItem(category, index) {
+window.deleteArchSubItem = (category, index) => {
     currentArchiveItem[category].splice(index, 1);
     renderArchSubItems();
-}
+};
 
-// --- ARCHIVE: 2. FÜL LOGIKA (HIERARCHIA) ---
+// --- ARCHIVE: 2. FÜL LOGIKA (HIERARCHIA - REKURZÍV FA) ---
 function getParentArrayAndIndex(pathStr) {
     if (pathStr === '') return { parentArray: currentArchiveItem.hierarchy, index: null };
     const parts = pathStr.split(',').map(Number);
@@ -450,14 +443,7 @@ function getParentArrayAndIndex(pathStr) {
     return { parentArray: curr, index: index };
 }
 
-function toggleTreeNode(pathStr) {
-    const { parentArray, index } = getParentArrayAndIndex(pathStr);
-    const node = parentArray[index];
-    node.isOpen = !node.isOpen;
-    renderTree();
-}
-
-function renderTree(container = document.getElementById('tree-container'), nodes = currentArchiveItem.hierarchy, path = []) {
+window.renderTree = (container = document.getElementById('tree-container'), nodes = currentArchiveItem.hierarchy, path = []) => {
     container.innerHTML = '';
     if (nodes.length === 0 && path.length === 0) {
         container.innerHTML = '<p style="color:var(--text-muted); text-align:center; font-size: 13px;">A hierarchia üres. Adj hozzá egy Fő elemet!</p>';
@@ -467,24 +453,19 @@ function renderTree(container = document.getElementById('tree-container'), nodes
     nodes.forEach((node, idx) => {
         const currentPath = [...path, idx];
         const pathStr = currentPath.join(',');
-        if (node.isOpen === undefined) node.isOpen = true; 
         
-        const isLeaf = (node.type === 'Episodes' || node.type === 'Movie');
-
         const div = document.createElement('div');
         div.className = 'tree-node';
 
         let innerHTML = '';
-        if (isLeaf) {
-            const icon = node.type === 'Episodes' ? '📺' : '🎬';
-            innerHTML = `<span style="width: 15px; display: inline-block;"></span><span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">${icon} ${node.type}: <strong style="color:var(--accent);">${node.value}</strong></span>`;
+        if (node.type === 'Episodes') {
+            innerHTML = `<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📺 Epizódok: <strong style="color:var(--accent);">${node.value}</strong></span>`;
         } else {
-            const toggleIcon = node.isOpen ? '▼' : '▶';
-            innerHTML = `<span class="tree-toggle" onclick="toggleTreeNode('${pathStr}')">${toggleIcon}</span><span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📂 ${node.type}: <strong style="color:var(--text);">${node.name}</strong></span>`;
+            innerHTML = `<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📂 ${node.type}: <strong style="color:var(--text);">${node.name}</strong></span>`;
         }
 
         innerHTML += `<div class="tree-actions">`;
-        if (!isLeaf) {
+        if (node.type !== 'Episodes') {
             innerHTML += `<button class="btn-icon" onclick="openTreeNodeSelector('${pathStr}')">➕</button>`;
         }
         innerHTML += `<button class="btn-icon" onclick="deleteTreeNode('${pathStr}')">🗑️</button></div>`;
@@ -494,7 +475,7 @@ function renderTree(container = document.getElementById('tree-container'), nodes
         headerDiv.innerHTML = innerHTML;
         div.appendChild(headerDiv);
 
-        if (node.children && node.children.length > 0 && node.isOpen) {
+        if (node.children && node.children.length > 0) {
             const childrenContainer = document.createElement('div');
             childrenContainer.className = 'tree-children';
             renderTree(childrenContainer, node.children, currentPath);
@@ -502,70 +483,55 @@ function renderTree(container = document.getElementById('tree-container'), nodes
         }
         container.appendChild(div);
     });
-}
+};
 
-function openTreeNodeSelector(pathStr) {
+window.openTreeNodeSelector = (pathStr) => {
     targetTreePath = pathStr;
     document.getElementById('tree-node-selector-modal').style.display = 'flex';
-}
-
-function closeTreeNodeSelector() {
+};
+window.closeTreeNodeSelector = () => {
     document.getElementById('tree-node-selector-modal').style.display = 'none';
-}
+};
 
-function addTreeNode(type) {
+window.addTreeNode = (type) => {
     closeTreeNodeSelector();
-    const isLeafType = (type === 'Episodes' || type === 'Movie');
-    const promptTitle = isLeafType ? `${type} száma / neve:` : `${type} neve:`;
+    const promptTitle = type === 'Episodes' ? 'Epizód Number vagy Range (pl. 1 vagy 1-12):' : `${type} neve:`;
     
     openCustomPrompt(promptTitle, "", (val) => {
         if (val && val.trim() !== '') {
-            const newNode = isLeafType 
+            const newNode = type === 'Episodes' 
                 ? { type: type, value: val.trim() } 
-                : { type: type, name: val.trim(), children: [], isOpen: true };
+                : { type: type, name: val.trim(), children: [] };
             
             if (targetTreePath === '') {
                 currentArchiveItem.hierarchy.push(newNode);
             } else {
                 const { parentArray, index } = getParentArrayAndIndex(targetTreePath);
                 parentArray[index].children.push(newNode);
-                parentArray[index].isOpen = true; 
             }
             renderTree();
         }
     });
-}
+};
 
-function editTreeNode(pathStr) {
+window.editTreeNode = (pathStr) => {
     const { parentArray, index } = getParentArrayAndIndex(pathStr);
     const node = parentArray[index];
     
-    const isLeafType = (node.type === 'Episodes' || node.type === 'Movie');
-    const promptTitle = isLeafType ? `${node.type} módosítása:` : `${node.type} nevének módosítása:`;
-    const oldVal = isLeafType ? node.value : node.name;
+    const promptTitle = node.type === 'Episodes' ? 'Epizód módosítása:' : `${node.type} nevének módosítása:`;
+    const oldVal = node.type === 'Episodes' ? node.value : node.name;
 
     openCustomPrompt(promptTitle, oldVal, (newVal) => {
         if (newVal && newVal.trim() !== '') {
-            if (isLeafType) node.value = newVal.trim();
+            if (node.type === 'Episodes') node.value = newVal.trim();
             else node.name = newVal.trim();
             renderTree();
         }
     });
-}
+};
 
-function deleteTreeNode(pathStr) {
+window.deleteTreeNode = (pathStr) => {
     const { parentArray, index } = getParentArrayAndIndex(pathStr);
     parentArray.splice(index, 1);
     renderTree();
-}
-
-// --- FÜGGVÉNYEK KIEXPORÁLÁSA A HTML (window) SZÁMÁRA ---
-// Ez a blokk teszi lehetővé, hogy az onclick események megtalálják a fenti függvényeket
-Object.assign(window, {
-    openCustomPrompt, closeCustomPrompt, addAnime, clearCurrentList, pickRandom,
-    closeOverlay, moveToWatchedFromRandom, openOptions, closeOptions, editItemPrompt,
-    moveListItem, confirmDelete, switchTab, render, startDelete, updateDeleteModal,
-    processDeleteStep, cancelDelete, switchArchTab, openArchiveModal, closeArchiveModal,
-    saveArchiveItem, renderArchSubItems, openSubItemPrompt, deleteArchSubItem, toggleTreeNode,
-    renderTree, openTreeNodeSelector, closeTreeNodeSelector, addTreeNode, editTreeNode, deleteTreeNode
-});
+};
