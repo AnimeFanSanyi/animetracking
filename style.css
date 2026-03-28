@@ -92,11 +92,12 @@ button:hover { opacity: 0.9; }
     color: #d946ef; font-size: 12px; font-weight: bold; margin-left: 8px;
     background: rgba(217, 70, 239, 0.1); padding: 2px 6px; border-radius: 6px; border: 1px solid transparent;
 }
+
 /* Új állapot tagek */
 .hashtag.tag-ended { color: #f43f5e; background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.3); }
-.hashtag.tag-continue-sometime { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.3); }
-.hashtag.tag-half-watched { color: #f97316; background: rgba(249, 115, 22, 0.1); border-color: rgba(249, 115, 22, 0.3); }
-.hashtag.tag-continue-soon { color: #eab308; background: rgba(234, 179, 8, 0.1); border-color: rgba(234, 179, 8, 0.3); }
+.hashtag.tag-continue-sometime { color: #2dd4bf; background: rgba(45, 212, 191, 0.1); border-color: rgba(45, 212, 191, 0.3); } /* Türkiz-zöld */
+.hashtag.tag-half-watched { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.3); } /* Világoskék */
+.hashtag.tag-continue-soon { color: #eab308; background: rgba(234, 179, 8, 0.1); border-color: rgba(234, 179, 8, 0.3); } /* Citromsárga */
 
 .custom-select {
     width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid var(--accent);
