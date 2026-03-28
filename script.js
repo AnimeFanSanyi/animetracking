@@ -373,7 +373,7 @@ window.openArchiveModal = (index = -1) => {
         isEditingArchive = false;
         editingArchiveIndex = -1;
         document.getElementById('archive-modal-title').innerText = "Új Archív Elem";
-        currentArchiveItem = { name: '', type: 'Anime', status: '#ended', manga: [], ova: [], movie: [], hierarchy: [] };
+        currentArchiveItem = { name: '', type: 'Anime', status: '#ended', manga: [], ova: [], movie: [], sequel: [], hierarchy: [] };
     } else {
         isEditingArchive = true;
         editingArchiveIndex = index;
@@ -382,8 +382,9 @@ window.openArchiveModal = (index = -1) => {
         if(!currentArchiveItem.manga) currentArchiveItem.manga = [];
         if(!currentArchiveItem.ova) currentArchiveItem.ova = [];
         if(!currentArchiveItem.movie) currentArchiveItem.movie = [];
+        if(!currentArchiveItem.sequel) currentArchiveItem.sequel = []; // <--- EZ AZ ÚJ SOR
         if(!currentArchiveItem.hierarchy) currentArchiveItem.hierarchy = [];
-        if(!currentArchiveItem.status) currentArchiveItem.status = '#ended'; // Visszamenőleges kompatibilitás a régebbi elemekkel
+        if(!currentArchiveItem.status) currentArchiveItem.status = '#ended'; 
     }
 
     document.getElementById('arch-name').value = currentArchiveItem.name;
@@ -414,9 +415,9 @@ window.saveArchiveItem = () => {
     closeArchiveModal();
 };
 
-// --- ARCHIVE: 1. FÜL LOGIKA (Manga, OVA, Movie) ---
 window.renderArchSubItems = () => {
-    const categories = ['manga', 'ova', 'movie'];
+    // Itt adtuk hozzá a 'sequel'-t a listához
+    const categories = ['manga', 'ova', 'movie', 'sequel']; 
     categories.forEach(cat => {
         const container = document.getElementById(`arch-${cat}-list`);
         container.innerHTML = '';
