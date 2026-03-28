@@ -1,4 +1,4 @@
-Pimport { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -39,7 +39,7 @@ const deleteMessages = [
 let currentArchiveItem = null; 
 let isEditingArchive = false;
 let editingArchiveIndex = -1;
-let targetTreePath = ''; // Hierarchia hozzáadásához
+let targetTreePath = ''; 
 
 // --- AUTH & SYNC ---
 onAuthStateChanged(auth, user => {
@@ -63,7 +63,7 @@ async function loadUserData() {
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
         userData = docSnap.data();
-        if (!userData.archive) userData.archive = []; // Biztosítás régi usereknél
+        if (!userData.archive) userData.archive = []; 
     } else {
         userData = { toWatch: [], watched: [], archive: [] };
     }
@@ -78,7 +78,7 @@ async function sync() {
 }
 
 // --- EGYEDI PROMPT LOGIKA ---
-window.openCustomPrompt = (title, defaultValue, callback) => {
+function openCustomPrompt(title, defaultValue, callback) {
     document.getElementById('custom-prompt-title').innerText = title;
     const input = document.getElementById('custom-prompt-input');
     input.value = defaultValue;
@@ -86,12 +86,12 @@ window.openCustomPrompt = (title, defaultValue, callback) => {
     
     document.getElementById('custom-prompt-modal').style.display = 'flex';
     input.focus();
-};
+}
 
-window.closeCustomPrompt = () => {
+function closeCustomPrompt() {
     document.getElementById('custom-prompt-modal').style.display = 'none';
     customPromptCallback = null;
-};
+}
 
 document.getElementById('custom-prompt-btn').onclick = () => {
     const val = document.getElementById('custom-prompt-input').value;
@@ -100,13 +100,12 @@ document.getElementById('custom-prompt-btn').onclick = () => {
 };
 
 // --- ALAP FUNKCIÓK (To Watch / Watched) ---
-window.addAnime = () => {
+function addAnime() {
     if (currentTab === 'archive') {
-        openArchiveModal(); // Archívumban megmarad a régi működés
+        openArchiveModal(); 
         return;
     }
 
-    // Bekérjük az új anime nevét a saját promptoddal
     openCustomPrompt("Új anime hozzáadása:", "", (val) => {
         if (!val || val.trim() === '') return;
         const finalVal = val.trim();
@@ -115,7 +114,6 @@ window.addAnime = () => {
                       userData.watched.some(i => i.name.toLowerCase() === finalVal.toLowerCase());
         
         if (isDup) {
-            // Egy pici késleltetés kell, hogy az előző modal bezáródási animációja ne ütközzön a hibajelzéssel
             setTimeout(() => {
                 openCustomPrompt("Hiba", "Ez már szerepel valamelyik listádban!", () => {}); 
             }, 50);
@@ -128,24 +126,20 @@ window.addAnime = () => {
             userData.watched.unshift({ name: finalVal, time: new Date().toLocaleString() });
         }
         
-        // Keresőmező ürítése (opcionális), hogy lásd az újonnan hozzáadott elemet
         document.getElementById('searchInput').value = ''; 
         sync();
     });
-};
+}
 
-// Real-time keresés: minden egyes karakter beírásakor/törlésekor azonnal szűr
 document.getElementById('searchInput').addEventListener('input', function () {
     render(); 
 });
 
 document.getElementById('searchInput').addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') {
-        e.preventDefault(); 
-    }
+    if (e.key === 'Enter') e.preventDefault(); 
 });
 
-window.clearCurrentList = () => {
+function clearCurrentList() {
     openCustomPrompt("Biztos törlöd a jelenlegi listát? Írd be: 'Igen'", "", (val) => {
         if (val && val.toLowerCase() === 'igen') {
             if (currentTab === 'toWatch') userData.toWatch = [];
@@ -154,9 +148,9 @@ window.clearCurrentList = () => {
             sync();
         }
     });
-};
+}
 
-window.pickRandom = () => {
+function pickRandom() {
     if (userData.toWatch.length === 0) {
         openCustomPrompt("Hiba", "A To Watch lista üres!", () => {});
         return;
@@ -169,19 +163,21 @@ window.pickRandom = () => {
     lastPickedIndex = randomIndex;
     document.getElementById('random-result').innerText = userData.toWatch[randomIndex];
     document.getElementById('overlay').style.display = 'flex';
-};
+}
 
-window.closeOverlay = () => document.getElementById('overlay').style.display = 'none';
+function closeOverlay() {
+    document.getElementById('overlay').style.display = 'none';
+}
 
-window.moveToWatchedFromRandom = () => {
+function moveToWatchedFromRandom() {
     const item = userData.toWatch.splice(lastPickedIndex, 1)[0];
     userData.watched.unshift({ name: item, time: new Date().toLocaleString() });
     sync();
     closeOverlay();
-};
+}
 
 // --- OPCIÓK MODAL (To Watch / Watched) ---
-window.openOptions = (index, name) => {
+function openOptions(index, name) {
     selectedItemIndex = index;
     document.getElementById('options-title').innerText = name;
     
@@ -189,10 +185,13 @@ window.openOptions = (index, name) => {
     moveBtn.innerText = currentTab === 'toWatch' ? '🔄 Áthelyezés Watched-be' : '🔄 Áthelyezés To Watch-ba';
     
     document.getElementById('options-modal').style.display = 'flex';
-};
-window.closeOptions = () => document.getElementById('options-modal').style.display = 'none';
+}
 
-window.editItemPrompt = () => {
+function closeOptions() {
+    document.getElementById('options-modal').style.display = 'none';
+}
+
+function editItemPrompt() {
     const oldVal = currentTab === 'toWatch' ? userData.toWatch[selectedItemIndex] : userData.watched[selectedItemIndex].name;
     openCustomPrompt("Szerkesztés:", oldVal, (newVal) => {
         if (newVal && newVal.trim() !== '') {
@@ -202,9 +201,9 @@ window.editItemPrompt = () => {
         }
     });
     closeOptions();
-};
+}
 
-window.moveListItem = () => {
+function moveListItem() {
     if (currentTab === 'toWatch') {
         const item = userData.toWatch.splice(selectedItemIndex, 1)[0];
         userData.watched.unshift({ name: item, time: new Date().toLocaleString() });
@@ -214,29 +213,28 @@ window.moveListItem = () => {
     }
     sync();
     closeOptions();
-};
+}
 
-window.confirmDelete = () => {
+function confirmDelete() {
     if (currentTab === 'toWatch') userData.toWatch.splice(selectedItemIndex, 1);
     else userData.watched.splice(selectedItemIndex, 1);
     sync();
     closeOptions();
-};
+}
 
 // --- RENDER (Főképernyő) ---
-window.switchTab = (t) => {
+function switchTab(t) {
     currentTab = t;
     document.getElementById('tabToWatch').classList.toggle('active', t === 'toWatch');
     document.getElementById('tabWatched').classList.toggle('active', t === 'watched');
     document.getElementById('tabArchive').classList.toggle('active', t === 'archive');
     render();
-};
+}
 
-window.render = () => {
+function render() {
     const container = document.getElementById('listContainer');
-    
     const rawSearch = document.getElementById('searchInput').value.toLowerCase();
-    const searchTerms = rawSearch.split(/\s+/).filter(t => t); // Szóköz mentén felosztjuk
+    const searchTerms = rawSearch.split(/\s+/).filter(t => t); 
 
     container.innerHTML = '';
     
@@ -253,7 +251,6 @@ window.render = () => {
         const name = currentTab === 'toWatch' ? item : item.name;
         
         let isMatch = true;
-        // Ha Archive nézetben vagyunk, csekkoljuk a hashtagekre a darabolt keresést (összes szónak egyeznie kell)
         if (currentTab === 'archive' && searchTerms.length > 0) {
             isMatch = searchTerms.every(term => {
                 return name.toLowerCase().includes(term) ||
@@ -261,7 +258,6 @@ window.render = () => {
                        ((item.status || '').toLowerCase()).includes(term);
             });
         } 
-        // Más nézeteknél sima text keresés a teljes beírt szövegre
         else if (searchTerms.length > 0) {
             isMatch = name.toLowerCase().includes(rawSearch);
         }
@@ -272,7 +268,6 @@ window.render = () => {
             const safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
             
             if (currentTab === 'archive') {
-                // ARCHIVE NÉZET
                 let statusClass = '';
                 if (item.status === '#ended') statusClass = 'tag-ended';
                 else if (item.status === '#continue-sometime') statusClass = 'tag-continue-sometime';
@@ -293,7 +288,6 @@ window.render = () => {
                     </div>
                 `;
             } else {
-                // TO WATCH / WATCHED NÉZET
                 div.innerHTML = `
                     <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; padding-right: 10px;">
                         <strong>${name}</strong>
@@ -305,17 +299,17 @@ window.render = () => {
             container.appendChild(div);
         }
     });
-};
+}
 
 // --- ARCHIVE: 3-LÉPCSŐS TÖRLÉS ---
-window.startDelete = (index) => {
+function startDelete(index) {
     deleteTargetIndex = index;
     deleteStep = 0;
     updateDeleteModal();
     document.getElementById('delete-modal').style.display = 'flex';
-};
+}
 
-window.updateDeleteModal = () => {
+function updateDeleteModal() {
     document.getElementById('delete-msg').innerText = deleteMessages[deleteStep];
     const btn = document.getElementById('btn-confirm-delete');
     if (deleteStep === 2) {
@@ -325,9 +319,9 @@ window.updateDeleteModal = () => {
         btn.innerText = "Tovább";
         btn.style.boxShadow = "none";
     }
-};
+}
 
-window.processDeleteStep = () => {
+function processDeleteStep() {
     deleteStep++;
     if (deleteStep < 3) {
         updateDeleteModal();
@@ -336,23 +330,23 @@ window.processDeleteStep = () => {
         sync();
         cancelDelete();
     }
-};
+}
 
-window.cancelDelete = () => {
+function cancelDelete() {
     document.getElementById('delete-modal').style.display = 'none';
     deleteTargetIndex = -1;
     deleteStep = 0;
-};
+}
 
 // --- ARCHIVE: ADD / EDIT MODAL ---
-window.switchArchTab = (num) => {
+function switchArchTab(num) {
     document.getElementById('archTab1').classList.toggle('active', num === 1);
     document.getElementById('archTab2').classList.toggle('active', num === 2);
     document.getElementById('arch-tab1-content').style.display = num === 1 ? 'block' : 'none';
     document.getElementById('arch-tab2-content').style.display = num === 2 ? 'block' : 'none';
-};
+}
 
-window.openArchiveModal = (index = -1) => {
+function openArchiveModal(index = -1) {
     switchArchTab(1);
     
     if (index === -1) {
@@ -363,9 +357,8 @@ window.openArchiveModal = (index = -1) => {
     } else {
         isEditingArchive = true;
         editingArchiveIndex = index;
-        currentArchiveItem = JSON.parse(JSON.stringify(userData.archive[index])); // Deep copy
+        currentArchiveItem = JSON.parse(JSON.stringify(userData.archive[index])); 
         
-        // Visszamenőleges kompatibilitás régebbi bejegyzésekhez
         if(!currentArchiveItem.manga) currentArchiveItem.manga = [];
         if(!currentArchiveItem.ova) currentArchiveItem.ova = [];
         if(!currentArchiveItem.movie) currentArchiveItem.movie = [];
@@ -381,16 +374,16 @@ window.openArchiveModal = (index = -1) => {
     document.getElementById('arch-status').value = currentArchiveItem.status;
     
     renderArchSubItems();
-    renderTree(); // 2. Fül Hierarchia fa renderelése
+    renderTree(); 
     document.getElementById('archive-modal').style.display = 'flex';
-};
+}
 
-window.closeArchiveModal = () => {
+function closeArchiveModal() {
     document.getElementById('archive-modal').style.display = 'none';
     currentArchiveItem = null;
-};
+}
 
-window.saveArchiveItem = () => {
+function saveArchiveItem() {
     const name = document.getElementById('arch-name').value.trim();
     if (!name) return openCustomPrompt("Hiba", "A cím nem lehet üres!", () => {});
 
@@ -403,10 +396,10 @@ window.saveArchiveItem = () => {
 
     sync();
     closeArchiveModal();
-};
+}
 
-// --- ARCHIVE: 1. FÜL LOGIKA (Manga, OVA, Movie, Sequel) ---
-window.renderArchSubItems = () => {
+// --- ARCHIVE: 1. FÜL LOGIKA ---
+function renderArchSubItems() {
     const categories = ['manga', 'ova', 'movie', 'sequel'];
     categories.forEach(cat => {
         const container = document.getElementById(`arch-${cat}-list`);
@@ -429,23 +422,23 @@ window.renderArchSubItems = () => {
             container.appendChild(div);
         });
     });
-};
+}
 
-window.openSubItemPrompt = (category) => {
+function openSubItemPrompt(category) {
     openCustomPrompt(`${category.toUpperCase()} hozzáadása:`, "", (val) => {
         if (val && val.trim() !== '') {
             currentArchiveItem[category].push(val.trim());
             renderArchSubItems();
         }
     });
-};
+}
 
-window.deleteArchSubItem = (category, index) => {
+function deleteArchSubItem(category, index) {
     currentArchiveItem[category].splice(index, 1);
     renderArchSubItems();
-};
+}
 
-// --- ARCHIVE: 2. FÜL LOGIKA (HIERARCHIA - REKURZÍV FA) ---
+// --- ARCHIVE: 2. FÜL LOGIKA (HIERARCHIA) ---
 function getParentArrayAndIndex(pathStr) {
     if (pathStr === '') return { parentArray: currentArchiveItem.hierarchy, index: null };
     const parts = pathStr.split(',').map(Number);
@@ -457,14 +450,14 @@ function getParentArrayAndIndex(pathStr) {
     return { parentArray: curr, index: index };
 }
 
-window.toggleTreeNode = (pathStr) => {
+function toggleTreeNode(pathStr) {
     const { parentArray, index } = getParentArrayAndIndex(pathStr);
     const node = parentArray[index];
     node.isOpen = !node.isOpen;
     renderTree();
-};
+}
 
-window.renderTree = (container = document.getElementById('tree-container'), nodes = currentArchiveItem.hierarchy, path = []) => {
+function renderTree(container = document.getElementById('tree-container'), nodes = currentArchiveItem.hierarchy, path = []) {
     container.innerHTML = '';
     if (nodes.length === 0 && path.length === 0) {
         container.innerHTML = '<p style="color:var(--text-muted); text-align:center; font-size: 13px;">A hierarchia üres. Adj hozzá egy Fő elemet!</p>';
@@ -474,7 +467,7 @@ window.renderTree = (container = document.getElementById('tree-container'), node
     nodes.forEach((node, idx) => {
         const currentPath = [...path, idx];
         const pathStr = currentPath.join(',');
-        if (node.isOpen === undefined) node.isOpen = true; // default állapot nyitva
+        if (node.isOpen === undefined) node.isOpen = true; 
         
         const isLeaf = (node.type === 'Episodes' || node.type === 'Movie');
 
@@ -509,17 +502,18 @@ window.renderTree = (container = document.getElementById('tree-container'), node
         }
         container.appendChild(div);
     });
-};
+}
 
-window.openTreeNodeSelector = (pathStr) => {
+function openTreeNodeSelector(pathStr) {
     targetTreePath = pathStr;
     document.getElementById('tree-node-selector-modal').style.display = 'flex';
-};
-window.closeTreeNodeSelector = () => {
-    document.getElementById('tree-node-selector-modal').style.display = 'none';
-};
+}
 
-window.addTreeNode = (type) => {
+function closeTreeNodeSelector() {
+    document.getElementById('tree-node-selector-modal').style.display = 'none';
+}
+
+function addTreeNode(type) {
     closeTreeNodeSelector();
     const isLeafType = (type === 'Episodes' || type === 'Movie');
     const promptTitle = isLeafType ? `${type} száma / neve:` : `${type} neve:`;
@@ -535,14 +529,14 @@ window.addTreeNode = (type) => {
             } else {
                 const { parentArray, index } = getParentArrayAndIndex(targetTreePath);
                 parentArray[index].children.push(newNode);
-                parentArray[index].isOpen = true; // Kinyitjuk, ha adunk hozzá valamit
+                parentArray[index].isOpen = true; 
             }
             renderTree();
         }
     });
-};
+}
 
-window.editTreeNode = (pathStr) => {
+function editTreeNode(pathStr) {
     const { parentArray, index } = getParentArrayAndIndex(pathStr);
     const node = parentArray[index];
     
@@ -557,10 +551,21 @@ window.editTreeNode = (pathStr) => {
             renderTree();
         }
     });
-};
+}
 
-window.deleteTreeNode = (pathStr) => {
+function deleteTreeNode(pathStr) {
     const { parentArray, index } = getParentArrayAndIndex(pathStr);
     parentArray.splice(index, 1);
     renderTree();
-};
+}
+
+// --- FÜGGVÉNYEK KIEXPORÁLÁSA A HTML (window) SZÁMÁRA ---
+// Ez a blokk teszi lehetővé, hogy az onclick események megtalálják a fenti függvényeket
+Object.assign(window, {
+    openCustomPrompt, closeCustomPrompt, addAnime, clearCurrentList, pickRandom,
+    closeOverlay, moveToWatchedFromRandom, openOptions, closeOptions, editItemPrompt,
+    moveListItem, confirmDelete, switchTab, render, startDelete, updateDeleteModal,
+    processDeleteStep, cancelDelete, switchArchTab, openArchiveModal, closeArchiveModal,
+    saveArchiveItem, renderArchSubItems, openSubItemPrompt, deleteArchSubItem, toggleTreeNode,
+    renderTree, openTreeNodeSelector, closeTreeNodeSelector, addTreeNode, editTreeNode, deleteTreeNode
+});
