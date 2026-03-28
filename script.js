@@ -2,15 +2,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { 
     getAuth, 
     GoogleAuthProvider, 
-    signInWithRedirect,   // Changed from signInWithPopup
-    getRedirectResult,     // Added for handling the return
+    signInWithRedirect,
+    getRedirectResult,
     onAuthStateChanged, 
     signOut 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // --- MOBILE DEBUGGER ---
-// If the app crashes on your phone, this will show an alert with the error message.
 window.onerror = (msg, url, line) => alert(`Error: ${msg}\nLine: ${line}`);
 
 const firebaseConfig = {
@@ -53,8 +52,6 @@ let editingArchiveIndex = -1;
 let targetTreePath = ''; 
 
 // --- AUTH & SYNC ---
-
-// 1. Handle the redirect result when the user comes back from Google
 getRedirectResult(auth)
     .then((result) => {
         if (result?.user) {
@@ -79,7 +76,6 @@ onAuthStateChanged(auth, user => {
     }
 });
 
-// 2. Updated login button to use Redirect
 document.getElementById('login-btn').onclick = () => signInWithRedirect(auth, provider);
 document.getElementById('logout-btn').onclick = () => signOut(auth);
 
@@ -244,7 +240,7 @@ window.confirmDelete = () => {
     closeOptions();
 };
 
-// --- RENDER (Főképernyő) ---
+// --- RENDER (Főképernyő & Search Fix) ---
 window.switchTab = (t) => {
     currentTab = t;
     document.getElementById('tabToWatch').classList.toggle('active', t === 'toWatch');
@@ -269,7 +265,17 @@ window.render = () => {
 
     list.forEach((item, index) => {
         const name = currentTab === 'toWatch' ? item : item.name;
-        if (name.toLowerCase().includes(search)) {
+        let isMatch = false;
+
+        // FIXED SEARCH LOGIC: Now checks tags on the Archive tab
+        if (currentTab === 'archive') {
+            const tag = `#${item.type}`.toLowerCase();
+            isMatch = name.toLowerCase().includes(search) || tag.includes(search);
+        } else {
+            isMatch = name.toLowerCase().includes(search);
+        }
+
+        if (isMatch) {
             const div = document.createElement('div');
             div.className = 'list-item';
             const safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -344,6 +350,15 @@ window.switchArchTab = (num) => {
     document.getElementById('arch-tab2-content').style.display = num === 2 ? 'block' : 'none';
 };
 
+// HELPER: Sets all tree nodes to collapsed by default
+function collapseAllNodes(nodes) {
+    if (!nodes) return;
+    nodes.forEach(node => {
+        node.isExpanded = false;
+        if (node.children) collapseAllNodes(node.children);
+    });
+}
+
 window.openArchiveModal = (index = -1) => {
     switchArchTab(1);
     
@@ -362,6 +377,9 @@ window.openArchiveModal = (index = -1) => {
         if(!currentArchiveItem.ova) currentArchiveItem.ova = [];
         if(!currentArchiveItem.movie) currentArchiveItem.movie = [];
         if(!currentArchiveItem.hierarchy) currentArchiveItem.hierarchy = [];
+
+        // HIERARCHY FIX: Collapse everything on open!
+        collapseAllNodes(currentArchiveItem.hierarchy);
     }
 
     document.getElementById('arch-name').value = currentArchiveItem.name;
@@ -431,7 +449,7 @@ window.deleteArchSubItem = (category, index) => {
     renderArchSubItems();
 };
 
-// --- ARCHIVE: 2. FÜL LOGIKA (HIERARCHIA - REKURZÍV FA) ---
+// --- ARCHIVE: 2. FÜL LOGIKA (HIERARCHIA - COLLAPSIBLE TREE) ---
 function getParentArrayAndIndex(pathStr) {
     if (pathStr === '') return { parentArray: currentArchiveItem.hierarchy, index: null };
     const parts = pathStr.split(',').map(Number);
@@ -442,6 +460,14 @@ function getParentArrayAndIndex(pathStr) {
     }
     return { parentArray: curr, index: index };
 }
+
+// TOGGLE FUNCTION: Flips node open/closed
+window.toggleTreeNode = (pathStr) => {
+    const { parentArray, index } = getParentArrayAndIndex(pathStr);
+    const node = parentArray[index];
+    node.isExpanded = !node.isExpanded;
+    renderTree();
+};
 
 window.renderTree = (container = document.getElementById('tree-container'), nodes = currentArchiveItem.hierarchy, path = []) => {
     container.innerHTML = '';
@@ -458,26 +484,49 @@ window.renderTree = (container = document.getElementById('tree-container'), node
         div.className = 'tree-node';
 
         let innerHTML = '';
+        
+        // COLLAPSE/EXPAND LOGIC
+        const isLeafType = (node.type === 'Episodes'); // Episodes don't have children
+        let toggleBtn = '';
+        if (!isLeafType) {
+            const icon = node.isExpanded ? '▼' : '▶';
+            toggleBtn = `<button class="btn-icon" style="margin-right: 5px; font-size: 12px; width: 20px; padding: 0;" onclick="toggleTreeNode('${pathStr}')">${icon}</button>`;
+        }
+
         if (node.type === 'Episodes') {
-            innerHTML = `<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📺 Epizódok: <strong style="color:var(--accent);">${node.value}</strong></span>`;
+            innerHTML = `${toggleBtn}<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📺 Epizódok: <strong style="color:var(--accent);">${node.value}</strong></span>`;
         } else {
-            innerHTML = `<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📂 ${node.type}: <strong style="color:var(--text);">${node.name}</strong></span>`;
+            innerHTML = `${toggleBtn}<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📂 ${node.type}: <strong style="color:var(--text);">${node.name}</strong></span>`;
         }
 
         innerHTML += `<div class="tree-actions">`;
-        if (node.type !== 'Episodes') {
+        if (!isLeafType) {
             innerHTML += `<button class="btn-icon" onclick="openTreeNodeSelector('${pathStr}')">➕</button>`;
         }
         innerHTML += `<button class="btn-icon" onclick="deleteTreeNode('${pathStr}')">🗑️</button></div>`;
 
         const headerDiv = document.createElement('div');
         headerDiv.className = 'tree-header';
+        // Add a little padding if it's a leaf to align it with folders that have toggle arrows
+        if(isLeafType) headerDiv.style.paddingLeft = '25px'; 
         headerDiv.innerHTML = innerHTML;
         div.appendChild(headerDiv);
 
         if (node.children && node.children.length > 0) {
             const childrenContainer = document.createElement('div');
             childrenContainer.className = 'tree-children';
+            
+            // Apply expanded/collapsed view
+            if (!node.isExpanded) {
+                childrenContainer.style.display = 'none';
+            } else {
+                childrenContainer.style.display = 'block';
+                // Slight indent to show hierarchy structure visually
+                childrenContainer.style.paddingLeft = '10px';
+                childrenContainer.style.borderLeft = '1px dashed #475569';
+                childrenContainer.style.marginLeft = '12px';
+            }
+            
             renderTree(childrenContainer, node.children, currentPath);
             div.appendChild(childrenContainer);
         }
@@ -501,13 +550,14 @@ window.addTreeNode = (type) => {
         if (val && val.trim() !== '') {
             const newNode = type === 'Episodes' 
                 ? { type: type, value: val.trim() } 
-                : { type: type, name: val.trim(), children: [] };
+                : { type: type, name: val.trim(), children: [], isExpanded: true }; // NEW: Folders start open
             
             if (targetTreePath === '') {
                 currentArchiveItem.hierarchy.push(newNode);
             } else {
                 const { parentArray, index } = getParentArrayAndIndex(targetTreePath);
                 parentArray[index].children.push(newNode);
+                parentArray[index].isExpanded = true; // NEW: Auto-open parent when adding!
             }
             renderTree();
         }
@@ -518,12 +568,13 @@ window.editTreeNode = (pathStr) => {
     const { parentArray, index } = getParentArrayAndIndex(pathStr);
     const node = parentArray[index];
     
-    const promptTitle = node.type === 'Episodes' ? 'Epizód módosítása:' : `${node.type} nevének módosítása:`;
-    const oldVal = node.type === 'Episodes' ? node.value : node.name;
+    const isLeafType = (node.type === 'Episodes' || node.type === 'Movie');
+    const promptTitle = isLeafType ? `${node.type} módosítása:` : `${node.type} nevének módosítása:`;
+    const oldVal = isLeafType ? node.value : node.name;
 
     openCustomPrompt(promptTitle, oldVal, (newVal) => {
         if (newVal && newVal.trim() !== '') {
-            if (node.type === 'Episodes') node.value = newVal.trim();
+            if (isLeafType) node.value = newVal.trim();
             else node.name = newVal.trim();
             renderTree();
         }
