@@ -1,4 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+Pimport { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -234,7 +234,10 @@ window.switchTab = (t) => {
 
 window.render = () => {
     const container = document.getElementById('listContainer');
-    const search = document.getElementById('searchInput').value.toLowerCase();
+    
+    const rawSearch = document.getElementById('searchInput').value.toLowerCase();
+    const searchTerms = rawSearch.split(/\s+/).filter(t => t); // Szóköz mentén felosztjuk
+
     container.innerHTML = '';
     
     let list = [];
@@ -248,17 +251,41 @@ window.render = () => {
 
     list.forEach((item, index) => {
         const name = currentTab === 'toWatch' ? item : item.name;
-        if (name.toLowerCase().includes(search)) {
+        
+        let isMatch = true;
+        // Ha Archive nézetben vagyunk, csekkoljuk a hashtagekre a darabolt keresést (összes szónak egyeznie kell)
+        if (currentTab === 'archive' && searchTerms.length > 0) {
+            isMatch = searchTerms.every(term => {
+                return name.toLowerCase().includes(term) ||
+                       ('#' + (item.type || '').toLowerCase()).includes(term) ||
+                       ((item.status || '').toLowerCase()).includes(term);
+            });
+        } 
+        // Más nézeteknél sima text keresés a teljes beírt szövegre
+        else if (searchTerms.length > 0) {
+            isMatch = name.toLowerCase().includes(rawSearch);
+        }
+
+        if (isMatch) {
             const div = document.createElement('div');
             div.className = 'list-item';
             const safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
             
             if (currentTab === 'archive') {
                 // ARCHIVE NÉZET
+                let statusClass = '';
+                if (item.status === '#ended') statusClass = 'tag-ended';
+                else if (item.status === '#continue-sometime') statusClass = 'tag-continue-sometime';
+                else if (item.status === '#half-watched') statusClass = 'tag-half-watched';
+                else if (item.status === '#continue-soon') statusClass = 'tag-continue-soon';
+
+                const statusHtml = item.status ? `<span class="hashtag ${statusClass}">${item.status}</span>` : '';
+
                 div.innerHTML = `
-                    <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; display: flex; align-items: center;">
+                    <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
                         <strong>${name}</strong>
                         <span class="hashtag">#${item.type}</span>
+                        ${statusHtml}
                     </div>
                     <div style="display: flex; gap: 5px;">
                         <button class="btn-icon" style="color: var(--accent);" onclick="openArchiveModal(${index})">✎</button>
@@ -332,21 +359,26 @@ window.openArchiveModal = (index = -1) => {
         isEditingArchive = false;
         editingArchiveIndex = -1;
         document.getElementById('archive-modal-title').innerText = "Új Archív Elem";
-        currentArchiveItem = { name: '', type: 'Anime', manga: [], ova: [], movie: [], hierarchy: [] };
+        currentArchiveItem = { name: '', type: 'Anime', status: '#ended', manga: [], ova: [], movie: [], sequel: [], hierarchy: [] };
     } else {
         isEditingArchive = true;
         editingArchiveIndex = index;
-        document.getElementById('archive-modal-title').innerText = "Archív Elem Szerkesztése";
-        currentArchiveItem = JSON.parse(JSON.stringify(userData.archive[index])); // Deep copy izolált szerkesztéshez
+        currentArchiveItem = JSON.parse(JSON.stringify(userData.archive[index])); // Deep copy
         
+        // Visszamenőleges kompatibilitás régebbi bejegyzésekhez
         if(!currentArchiveItem.manga) currentArchiveItem.manga = [];
         if(!currentArchiveItem.ova) currentArchiveItem.ova = [];
         if(!currentArchiveItem.movie) currentArchiveItem.movie = [];
+        if(!currentArchiveItem.sequel) currentArchiveItem.sequel = [];
         if(!currentArchiveItem.hierarchy) currentArchiveItem.hierarchy = [];
+        if(!currentArchiveItem.status) currentArchiveItem.status = '#ended';
+
+        document.getElementById('archive-modal-title').innerText = "Archív Elem Szerkesztése";
     }
 
     document.getElementById('arch-name').value = currentArchiveItem.name;
     document.getElementById('arch-type').value = currentArchiveItem.type;
+    document.getElementById('arch-status').value = currentArchiveItem.status;
     
     renderArchSubItems();
     renderTree(); // 2. Fül Hierarchia fa renderelése
@@ -364,6 +396,7 @@ window.saveArchiveItem = () => {
 
     currentArchiveItem.name = name;
     currentArchiveItem.type = document.getElementById('arch-type').value;
+    currentArchiveItem.status = document.getElementById('arch-status').value;
 
     if (isEditingArchive) userData.archive[editingArchiveIndex] = currentArchiveItem;
     else userData.archive.unshift(currentArchiveItem);
@@ -372,9 +405,9 @@ window.saveArchiveItem = () => {
     closeArchiveModal();
 };
 
-// --- ARCHIVE: 1. FÜL LOGIKA (Manga, OVA, Movie) ---
+// --- ARCHIVE: 1. FÜL LOGIKA (Manga, OVA, Movie, Sequel) ---
 window.renderArchSubItems = () => {
-    const categories = ['manga', 'ova', 'movie'];
+    const categories = ['manga', 'ova', 'movie', 'sequel'];
     categories.forEach(cat => {
         const container = document.getElementById(`arch-${cat}-list`);
         container.innerHTML = '';
@@ -413,7 +446,6 @@ window.deleteArchSubItem = (category, index) => {
 };
 
 // --- ARCHIVE: 2. FÜL LOGIKA (HIERARCHIA - REKURZÍV FA) ---
-// Útvonal navigátor segédfüggvény (pl. "0,2,1" alapján kikeresi a szülő tömböt)
 function getParentArrayAndIndex(pathStr) {
     if (pathStr === '') return { parentArray: currentArchiveItem.hierarchy, index: null };
     const parts = pathStr.split(',').map(Number);
@@ -425,6 +457,13 @@ function getParentArrayAndIndex(pathStr) {
     return { parentArray: curr, index: index };
 }
 
+window.toggleTreeNode = (pathStr) => {
+    const { parentArray, index } = getParentArrayAndIndex(pathStr);
+    const node = parentArray[index];
+    node.isOpen = !node.isOpen;
+    renderTree();
+};
+
 window.renderTree = (container = document.getElementById('tree-container'), nodes = currentArchiveItem.hierarchy, path = []) => {
     container.innerHTML = '';
     if (nodes.length === 0 && path.length === 0) {
@@ -435,19 +474,24 @@ window.renderTree = (container = document.getElementById('tree-container'), node
     nodes.forEach((node, idx) => {
         const currentPath = [...path, idx];
         const pathStr = currentPath.join(',');
+        if (node.isOpen === undefined) node.isOpen = true; // default állapot nyitva
         
+        const isLeaf = (node.type === 'Episodes' || node.type === 'Movie');
+
         const div = document.createElement('div');
         div.className = 'tree-node';
 
         let innerHTML = '';
-        if (node.type === 'Episodes') {
-            innerHTML = `<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📺 Epizódok: <strong style="color:var(--accent);">${node.value}</strong></span>`;
+        if (isLeaf) {
+            const icon = node.type === 'Episodes' ? '📺' : '🎬';
+            innerHTML = `<span style="width: 15px; display: inline-block;"></span><span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">${icon} ${node.type}: <strong style="color:var(--accent);">${node.value}</strong></span>`;
         } else {
-            innerHTML = `<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📂 ${node.type}: <strong style="color:var(--text);">${node.name}</strong></span>`;
+            const toggleIcon = node.isOpen ? '▼' : '▶';
+            innerHTML = `<span class="tree-toggle" onclick="toggleTreeNode('${pathStr}')">${toggleIcon}</span><span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📂 ${node.type}: <strong style="color:var(--text);">${node.name}</strong></span>`;
         }
 
         innerHTML += `<div class="tree-actions">`;
-        if (node.type !== 'Episodes') {
+        if (!isLeaf) {
             innerHTML += `<button class="btn-icon" onclick="openTreeNodeSelector('${pathStr}')">➕</button>`;
         }
         innerHTML += `<button class="btn-icon" onclick="deleteTreeNode('${pathStr}')">🗑️</button></div>`;
@@ -457,7 +501,7 @@ window.renderTree = (container = document.getElementById('tree-container'), node
         headerDiv.innerHTML = innerHTML;
         div.appendChild(headerDiv);
 
-        if (node.children && node.children.length > 0) {
+        if (node.children && node.children.length > 0 && node.isOpen) {
             const childrenContainer = document.createElement('div');
             childrenContainer.className = 'tree-children';
             renderTree(childrenContainer, node.children, currentPath);
@@ -477,19 +521,21 @@ window.closeTreeNodeSelector = () => {
 
 window.addTreeNode = (type) => {
     closeTreeNodeSelector();
-    const promptTitle = type === 'Episodes' ? 'Epizód Number vagy Range (pl. 1 vagy 1-12):' : `${type} neve:`;
+    const isLeafType = (type === 'Episodes' || type === 'Movie');
+    const promptTitle = isLeafType ? `${type} száma / neve:` : `${type} neve:`;
     
     openCustomPrompt(promptTitle, "", (val) => {
         if (val && val.trim() !== '') {
-            const newNode = type === 'Episodes' 
+            const newNode = isLeafType 
                 ? { type: type, value: val.trim() } 
-                : { type: type, name: val.trim(), children: [] };
+                : { type: type, name: val.trim(), children: [], isOpen: true };
             
             if (targetTreePath === '') {
                 currentArchiveItem.hierarchy.push(newNode);
             } else {
                 const { parentArray, index } = getParentArrayAndIndex(targetTreePath);
                 parentArray[index].children.push(newNode);
+                parentArray[index].isOpen = true; // Kinyitjuk, ha adunk hozzá valamit
             }
             renderTree();
         }
@@ -500,12 +546,13 @@ window.editTreeNode = (pathStr) => {
     const { parentArray, index } = getParentArrayAndIndex(pathStr);
     const node = parentArray[index];
     
-    const promptTitle = node.type === 'Episodes' ? 'Epizód módosítása:' : `${node.type} nevének módosítása:`;
-    const oldVal = node.type === 'Episodes' ? node.value : node.name;
+    const isLeafType = (node.type === 'Episodes' || node.type === 'Movie');
+    const promptTitle = isLeafType ? `${node.type} módosítása:` : `${node.type} nevének módosítása:`;
+    const oldVal = isLeafType ? node.value : node.name;
 
     openCustomPrompt(promptTitle, oldVal, (newVal) => {
         if (newVal && newVal.trim() !== '') {
-            if (node.type === 'Episodes') node.value = newVal.trim();
+            if (isLeafType) node.value = newVal.trim();
             else node.name = newVal.trim();
             renderTree();
         }
