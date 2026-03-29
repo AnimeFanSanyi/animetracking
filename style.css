@@ -24,14 +24,19 @@ body {
 h1 { text-align: center; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px;}
 
 .main-header {
-    background: linear-gradient(135deg, rgba(30, 27, 75, 0.7), rgba(15, 23, 42, 0.8));
-    border: 1px solid rgba(167, 139, 250, 0.2);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-    padding: 12px 18px;
-    margin-top: 5px;
+    display: flex;
+    justify-content: space-between; /* Név balra, gomb jobbra */
+    align-items: center;
+    gap: 15px;
+    padding: 10px 15px;
 }
 
-#user-display { font-weight: 600; font-size: 14px; }
+#user-display {
+    flex: 1; /* Kitölti a helyet, hogy a gombot jobbra tolja */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
 #logout-btn {
     width: auto; /* Felülírja a 100%-os szélességet */
