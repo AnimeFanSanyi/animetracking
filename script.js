@@ -240,7 +240,7 @@ window.confirmDelete = () => {
     closeOptions();
 };
 
-// --- RENDER (Főképernyő & Search Fix) ---
+// --- RENDER (Főképernyő) ---
 window.switchTab = (t) => {
     currentTab = t;
     document.getElementById('tabToWatch').classList.toggle('active', t === 'toWatch');
@@ -483,28 +483,29 @@ window.renderTree = (container = document.getElementById('tree-container'), node
         let innerHTML = '';
         
         // COLLAPSE/EXPAND LOGIC ÉS LEVÉL ELLENŐRZÉS
-        const isLeafType = (node.type === 'Episodes' || node.type === 'Movie'); // Movie is now a leaf!
+        const isLeafType = (node.type === 'Episodes' || node.type === 'Movie');
         let toggleBtn = '';
         if (!isLeafType) {
             const icon = node.isExpanded ? '▼' : '▶';
-            toggleBtn = `<button class="btn-icon" style="margin-right: 5px; font-size: 12px; width: 20px; padding: 0; color: var(--accent);" onclick="toggleTreeNode('${pathStr}')">${icon}</button>`;
+            // Itt hozzáadtam egy tree-toggle classt, hogy később a kód könnyen megtalálja
+            toggleBtn = `<button class="btn-icon tree-toggle" style="margin-right: 5px; font-size: 12px; width: 20px; padding: 0; color: var(--accent);" onclick="toggleTreeNode('${pathStr}')">${icon}</button>`;
         }
 
-        // SZÖVEGEK
+        // SZÖVEGEK (Itt javítottam a Film szót Movie-ra)
         if (node.type === 'Episodes') {
             innerHTML = `${toggleBtn}<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📺 Epizódok: <strong style="color:var(--accent);">${node.value}</strong></span>`;
         } else if (node.type === 'Movie') {
-            innerHTML = `${toggleBtn}<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">🎬 Film: <strong style="color:var(--accent);">${node.value}</strong></span>`;
+            innerHTML = `${toggleBtn}<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">🎬 Movie: <strong style="color:var(--accent);">${node.value}</strong></span>`;
         } else {
             innerHTML = `${toggleBtn}<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📂 ${node.type}: <strong style="color:var(--text);">${node.name}</strong></span>`;
         }
 
-        // AKCIÓ GOMBOK (Színezve)
+        // AKCIÓ GOMBOK (Színezve - !important kivéve, hogy működjön)
         innerHTML += `<div class="tree-actions">`;
         if (!isLeafType) {
-            innerHTML += `<button class="btn-icon" style="color: ${btnColor} !important;" onclick="openTreeNodeSelector('${pathStr}')">➕</button>`;
+            innerHTML += `<button class="btn-icon" style="color: ${btnColor};" onclick="openTreeNodeSelector('${pathStr}')">➕</button>`;
         }
-        innerHTML += `<button class="btn-icon" style="color: ${btnColor} !important;" onclick="deleteTreeNode('${pathStr}')">🗑️</button></div>`;
+        innerHTML += `<button class="btn-icon" style="color: ${btnColor};" onclick="deleteTreeNode('${pathStr}')">🗑️</button></div>`;
 
         const headerDiv = document.createElement('div');
         headerDiv.className = 'tree-header';
@@ -571,7 +572,8 @@ window.addDragListeners = (headerDiv, nodeDiv, idx) => {
 
     const checkMovement = (e) => {
         if (pressTimer) {
-            if (Math.abs(e.clientY - startY) > 10 || Math.abs(e.clientX - startX) > 10) {
+            // Megnövelt limit, hogy ne dobja el ha picit bemozdul az ujjad
+            if (Math.abs(e.clientY - startY) > 15 || Math.abs(e.clientX - startX) > 15) {
                 cancelPress();
             }
         }
@@ -585,6 +587,9 @@ window.addDragListeners = (headerDiv, nodeDiv, idx) => {
 window.initDrag = (e, element, index) => {
     const container = document.getElementById('tree-container');
     container.style.position = 'relative';
+    
+    // Globális görgetés letiltása, amíg húzzuk az elemet, nehogy a böngésző megszakítsa!
+    document.body.style.touchAction = 'none';
 
     // Ha lista szerű elem, csukjuk össze mozgás előtt!
     const nodeData = currentArchiveItem.hierarchy[index];
@@ -605,7 +610,7 @@ window.initDrag = (e, element, index) => {
     placeholder.style.height = `${rect.height}px`;
     element.before(placeholder);
 
-    // Elem lebegtetése fix Y pozíción (Abszolút a konténeren belül)
+    // Elem lebegtetése fix Y pozíción
     element.style.position = 'absolute';
     element.style.top = `${rect.top - containerRect.top + container.scrollTop}px`;
     element.style.left = `0px`;
@@ -639,9 +644,14 @@ window.handleDragMove = (e) => {
     let y = e.clientY - containerRect.top + container.scrollTop - dragContext.offsetY;
     dragContext.element.style.top = `${y}px`;
 
-    // Elemek cseréje
-    const nodes = Array.from(container.children).filter(c => c.classList.contains('root-node') || c.classList.contains('drag-placeholder'));
-    const elemBelow = document.elementFromPoint(containerRect.left + 50, e.clientY);
+    // Elemek cseréje (A kulcs: kiszűrjük magát az épp húzott elemet!)
+    const nodes = Array.from(container.children).filter(c => 
+        (c.classList.contains('root-node') || c.classList.contains('drag-placeholder')) &&
+        !c.classList.contains('dragging')
+    );
+    
+    // Stabilabb pont keresés (a konténer közepén, nem a szélén)
+    const elemBelow = document.elementFromPoint(containerRect.left + (containerRect.width / 2), e.clientY);
 
     if (elemBelow) {
         const closestRootNode = elemBelow.closest('.tree-node.root-node');
@@ -664,10 +674,17 @@ window.handleDragEnd = (e) => {
     document.removeEventListener('pointerup', handleDragEnd);
     document.removeEventListener('pointercancel', handleDragEnd);
 
+    // Görgetés visszakapcsolása
+    document.body.style.touchAction = '';
     document.getElementById('archive-modal').querySelector('.modal-content').style.overflow = 'auto';
 
     const container = document.getElementById('tree-container');
-    const nodes = Array.from(container.children).filter(c => c.classList.contains('root-node') || c.classList.contains('drag-placeholder'));
+    
+    // Itt volt a nagy hiba! Most már kihagyjuk az épp húzott elemet a számolásból!
+    const nodes = Array.from(container.children).filter(c => 
+        (c.classList.contains('root-node') || c.classList.contains('drag-placeholder')) &&
+        !c.classList.contains('dragging')
+    );
 
     const finalOrderIndices = [];
     nodes.forEach(n => {
