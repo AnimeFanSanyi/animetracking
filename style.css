@@ -87,17 +87,15 @@ button:hover { opacity: 0.9; }
     background: rgba(167, 139, 250, 0.1); border-radius: 12px; border: 1px dashed var(--accent);
 }
 
-/* --- ARCHÍVUM, TAB 1 & TAB 2 STÍLUSOK --- */
 .hashtag {
     color: #d946ef; font-size: 12px; font-weight: bold; margin-left: 8px;
     background: rgba(217, 70, 239, 0.1); padding: 2px 6px; border-radius: 6px; border: 1px solid transparent;
 }
 
-/* Új állapot tagek */
 .hashtag.tag-ended { color: #f43f5e; background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.3); }
-.hashtag.tag-continue-sometime { color: #2dd4bf; background: rgba(45, 212, 191, 0.1); border-color: rgba(45, 212, 191, 0.3); } /* Türkiz-zöld */
-.hashtag.tag-half-watched { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.3); } /* Világoskék */
-.hashtag.tag-continue-soon { color: #eab308; background: rgba(234, 179, 8, 0.1); border-color: rgba(234, 179, 8, 0.3); } /* Citromsárga */
+.hashtag.tag-continue-sometime { color: #2dd4bf; background: rgba(45, 212, 191, 0.1); border-color: rgba(45, 212, 191, 0.3); } 
+.hashtag.tag-half-watched { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.3); } 
+.hashtag.tag-continue-soon { color: #eab308; background: rgba(234, 179, 8, 0.1); border-color: rgba(234, 179, 8, 0.3); } 
 
 .custom-select {
     width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid var(--accent);
@@ -120,15 +118,16 @@ button:hover { opacity: 0.9; }
 .sub-item span:hover { color: var(--accent); }
 
 .btn-icon {
-    background: transparent; border: none; color: var(--text-muted); cursor: pointer;
+    background: transparent; border: none; cursor: pointer;
     font-size: 16px; padding: 5px; transition: 0.2s; width: auto; margin: 0;
 }
-.btn-icon:hover { color: var(--danger); }
+.btn-icon:hover { opacity: 0.7; }
 
 /* TREE VIEW (Hierarchia) Stílusok */
 .tree-node {
     margin-top: 5px;
     position: relative;
+    user-select: none; /* Fontos a drag&drop miatt */
 }
 .tree-header {
     display: flex;
@@ -138,6 +137,7 @@ button:hover { opacity: 0.9; }
     padding: 6px 10px;
     border-radius: 6px;
     margin-bottom: 4px;
+    transition: background 0.2s;
 }
 .tree-header:hover {
     background: rgba(255, 255, 255, 0.1);
@@ -175,4 +175,19 @@ button:hover { opacity: 0.9; }
     margin-left: 15px;
     border-left: 1px dashed rgba(167, 139, 250, 0.3);
     padding-left: 10px;
+}
+
+/* DRAG AND DROP KIEGÉSZÍTÉS */
+.drag-placeholder {
+    background: rgba(167, 139, 250, 0.15) !important;
+    border: 1px dashed var(--accent) !important;
+    border-radius: 6px;
+    margin-bottom: 5px;
+}
+.dragging .tree-header {
+    background: rgba(167, 139, 250, 0.2);
+}
+.tree-node.dragging {
+    box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+    border-radius: 6px;
 }
