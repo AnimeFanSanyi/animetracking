@@ -29,7 +29,7 @@
         <button onclick="addAnime()" style="background: var(--success); margin-bottom: 15px; font-size: 16px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">➕ Új Hozzáadása</button>
         
         <div class="input-group" style="margin-bottom: 20px;">
-            <input type="text" id="searchInput" placeholder="Keresés a listában (pl. cím, #anime, #ended)...">
+            <input type="text" id="searchInput" placeholder="Keresés a listában (pl. cím, #anime, #manga)...">
         </div>
 
         <div class="tabs">
@@ -97,13 +97,13 @@
                 <input type="text" id="arch-name" placeholder="Főcím (pl. Naruto)..." style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--accent); background: rgba(0,0,0,0.3); color: white; margin-bottom: 10px;">
                 
                 <div style="display: flex; gap: 10px;">
-                    <select id="arch-type" class="custom-select" style="flex: 1;">
+                    <select id="arch-type" class="custom-select" style="flex: 1; background: #1e1b4b; color: white; border: 1px solid var(--accent); padding: 10px; border-radius: 8px;">
                         <option value="Anime">#Anime</option>
                         <option value="Manga">#Manga</option>
                         <option value="StandaloneMovie">#StandaloneMovie</option>
                     </select>
 
-                    <select id="arch-status" class="custom-select" style="flex: 1;">
+                    <select id="arch-status" class="custom-select" style="flex: 1; background: #1e1b4b; color: white; border: 1px solid var(--accent); padding: 10px; border-radius: 8px;">
                         <option value="#ended" style="color: #f43f5e;">#ended</option>
                         <option value="#continue-sometime" style="color: #2dd4bf;">#continue-sometime</option>
                         <option value="#half-watched" style="color: #38bdf8;">#half-watched</option>
