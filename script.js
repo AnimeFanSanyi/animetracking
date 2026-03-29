@@ -442,7 +442,7 @@ window.deleteArchSubItem = (category, index) => {
 };
 
 // --- ARCHIVE: 2. FÜL LOGIKA (HIERARCHIA - DRAG & DROP & COLOR CODING) ---
-const depthColors = ['#ffffff', '#d946ef', '#8b5cf6', '#6366f1', '#3b82f6', '#14b8a6', '#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444'];
+const depthColors = ['var(--accent)', '#d946ef', '#8b5cf6', '#6366f1', '#3b82f6', '#14b8a6', '#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444'];
 
 function getParentArrayAndIndex(pathStr) {
     if (pathStr === '') return { parentArray: currentArchiveItem.hierarchy, index: null };
@@ -487,11 +487,10 @@ window.renderTree = (container = document.getElementById('tree-container'), node
         let toggleBtn = '';
         if (!isLeafType) {
             const icon = node.isExpanded ? '▼' : '▶';
-            // Itt hozzáadtam egy tree-toggle classt, hogy később a kód könnyen megtalálja
             toggleBtn = `<button class="btn-icon tree-toggle" style="margin-right: 5px; font-size: 12px; width: 20px; padding: 0; color: var(--accent);" onclick="toggleTreeNode('${pathStr}')">${icon}</button>`;
         }
 
-        // SZÖVEGEK (Itt javítottam a Film szót Movie-ra)
+        // SZÖVEGEK
         if (node.type === 'Episodes') {
             innerHTML = `${toggleBtn}<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📺 Epizódok: <strong style="color:var(--accent);">${node.value}</strong></span>`;
         } else if (node.type === 'Movie') {
@@ -500,12 +499,12 @@ window.renderTree = (container = document.getElementById('tree-container'), node
             innerHTML = `${toggleBtn}<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📂 ${node.type}: <strong style="color:var(--text);">${node.name}</strong></span>`;
         }
 
-        // AKCIÓ GOMBOK (Színezve - !important kivéve, hogy működjön)
+        // AKCIÓ GOMBOK (Színezve - Emojik helyett szöveges szimbólumok, hogy hasson rájuk a color)
         innerHTML += `<div class="tree-actions">`;
         if (!isLeafType) {
-            innerHTML += `<button class="btn-icon" style="color: ${btnColor};" onclick="openTreeNodeSelector('${pathStr}')">➕</button>`;
+            innerHTML += `<button class="btn-icon" style="color: ${btnColor}; font-weight: bold;" onclick="openTreeNodeSelector('${pathStr}')">＋</button>`;
         }
-        innerHTML += `<button class="btn-icon" style="color: ${btnColor};" onclick="deleteTreeNode('${pathStr}')">🗑️</button></div>`;
+        innerHTML += `<button class="btn-icon" style="color: ${btnColor}; font-weight: bold;" onclick="deleteTreeNode('${pathStr}')">✕</button></div>`;
 
         const headerDiv = document.createElement('div');
         headerDiv.className = 'tree-header';
@@ -590,6 +589,11 @@ window.initDrag = (e, element, index) => {
     
     // Globális görgetés letiltása, amíg húzzuk az elemet, nehogy a böngésző megszakítsa!
     document.body.style.touchAction = 'none';
+    document.body.style.overflow = 'hidden'; // HÁTTÉR GÖRGETÉS BLOKKOLÁSA
+
+    // Touch görgetés agresszív blokkolása
+    window.preventTouchScroll = function(event) { event.preventDefault(); };
+    document.addEventListener('touchmove', window.preventTouchScroll, { passive: false });
 
     // Ha lista szerű elem, csukjuk össze mozgás előtt!
     const nodeData = currentArchiveItem.hierarchy[index];
@@ -676,6 +680,9 @@ window.handleDragEnd = (e) => {
 
     // Görgetés visszakapcsolása
     document.body.style.touchAction = '';
+    document.body.style.overflow = ''; // HÁTTÉR GÖRGETÉS VISSZAÁLLÍTÁSA
+    document.removeEventListener('touchmove', window.preventTouchScroll); // TOUCH BLOKKOLÁS FELOLDÁSA
+    
     document.getElementById('archive-modal').querySelector('.modal-content').style.overflow = 'auto';
 
     const container = document.getElementById('tree-container');
