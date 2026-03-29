@@ -483,7 +483,7 @@ window.renderTree = (container = document.getElementById('tree-container'), node
         let innerHTML = '';
         
         // COLLAPSE/EXPAND LOGIC ÉS LEVÉL ELLENŐRZÉS
-        const isLeafType = (node.type === 'Episodes' || node.type === 'Movie');
+        const isLeafType = (node.type === 'Episodes' || node.type === 'Movie' || node.type === 'Chapter');
         let toggleBtn = '';
         if (!isLeafType) {
             const icon = node.isExpanded ? '▼' : '▶';
@@ -495,6 +495,8 @@ window.renderTree = (container = document.getElementById('tree-container'), node
             innerHTML = `${toggleBtn}<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📺 Epizódok: <strong style="color:var(--accent);">${node.value}</strong></span>`;
         } else if (node.type === 'Movie') {
             innerHTML = `${toggleBtn}<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">🎬 Movie: <strong style="color:var(--accent);">${node.value}</strong></span>`;
+        } else if (node.type === 'Chapter') {
+            innerHTML = `${toggleBtn}<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📄 Chapter: <strong style="color:var(--accent);">${node.value}</strong></span>`;
         } else {
             innerHTML = `${toggleBtn}<span class="tree-text" title="Kattints duplán a szerkesztéshez" ondblclick="editTreeNode('${pathStr}')">📂 ${node.type}: <strong style="color:var(--text);">${node.name}</strong></span>`;
         }
@@ -724,9 +726,11 @@ window.closeTreeNodeSelector = () => {
 
 window.addTreeNode = (type) => {
     closeTreeNodeSelector();
-    const isLeaf = (type === 'Episodes' || type === 'Movie'); // Mindkettő levél elem
+    const isLeaf = (type === 'Episodes' || type === 'Movie' || type === 'Chapter'); // Mindhárom levél elem
     const promptTitle = type === 'Episodes' ? 'Epizód Number vagy Range (pl. 1 vagy 1-12):' : 
-                        type === 'Movie' ? 'Film címe:' : `${type} neve:`;
+                        type === 'Movie' ? 'Film címe:' : 
+                        type === 'Chapter' ? 'Chapter Number vagy Range (pl. 1 vagy 1-12):' : 
+                        `${type} neve:`;
     
     openCustomPrompt(promptTitle, "", (val) => {
         if (val && val.trim() !== '') {
@@ -750,7 +754,7 @@ window.editTreeNode = (pathStr) => {
     const { parentArray, index } = getParentArrayAndIndex(pathStr);
     const node = parentArray[index];
     
-    const isLeafType = (node.type === 'Episodes' || node.type === 'Movie');
+    const isLeafType = (node.type === 'Episodes' || node.type === 'Movie' || node.type === 'Chapter');
     const promptTitle = isLeafType ? `${node.type} módosítása:` : `${node.type} nevének módosítása:`;
     const oldVal = isLeafType ? node.value : node.name;
 
