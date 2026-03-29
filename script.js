@@ -2,7 +2,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { 
     getAuth, 
     GoogleAuthProvider, 
-    signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
     onAuthStateChanged, 
     signOut 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -64,6 +65,18 @@ let editingArchiveIndex = -1;
 let targetTreePath = ''; 
 
 // --- AUTH & SYNC ---
+
+// 1. Catch the redirect result when the page reloads after Google Login
+getRedirectResult(auth).then((result) => {
+    if (result) {
+        console.log("Sikeres bejelentkezés redirect után:", result.user.displayName);
+    }
+}).catch((error) => {
+    console.error("Redirect Auth Error:", error);
+    alert("Bejelentkezési hiba a visszatérésnél: " + error.message);
+});
+
+// 2. Listen for auth state changes
 onAuthStateChanged(auth, user => {
     if (user) {
         currentUser = user;
@@ -77,14 +90,17 @@ onAuthStateChanged(auth, user => {
     }
 });
 
-document.getElementById('login-btn').onclick = () => {
-    signInWithPopup(auth, provider).catch((error) => {
-        console.error("Login Error:", error);
-        alert("Sikertelen bejelentkezés: " + error.message);
+// 3. Trigger redirect login
+document.getElementById('login-btn').addEventListener('click', () => {
+    signInWithRedirect(auth, provider).catch(error => {
+        console.error("Login Trigger Error:", error);
+        alert("Bejelentkezés indítása sikertelen: " + error.message);
     });
-};
+});
 
-document.getElementById('logout-btn').onclick = () => signOut(auth);
+document.getElementById('logout-btn').addEventListener('click', () => {
+    signOut(auth);
+});
 
 async function loadUserData() {
     const docRef = doc(db, "users", currentUser.uid);
@@ -103,7 +119,7 @@ async function sync() {
     }
 }
 
-// --- CUSTOM PROMPT (A megse gombok miatt fontos, hogy rendben legyen) ---
+// --- CUSTOM PROMPT ---
 window.openCustomPrompt = (title, defaultValue, callback) => {
     document.getElementById('custom-prompt-title').innerText = title;
     const input = document.getElementById('custom-prompt-input');
@@ -405,7 +421,7 @@ window.deleteArchSubItem = (category, index) => {
     renderArchSubItems();
 };
 
-// --- ARCHIVE: 2. FÜL LOGIKA (HIERARCHIA - BAL OLDALI SZÍNES ÁRNYÉKKAL) ---
+// --- ARCHIVE: 2. FÜL LOGIKA ---
 function getParentArrayAndIndex(pathStr) {
     if (pathStr === '') return { parentArray: currentArchiveItem.hierarchy, index: null };
     const parts = pathStr.split(',').map(Number);
@@ -434,7 +450,7 @@ window.renderTree = (container = document.getElementById('tree-container'), node
         const currentPath = [...path, idx];
         const pathStr = currentPath.join(',');
         
-        const config = NODE_CONFIG[node.type] || { color: '#94a3b8' }; // Ha nincs a listában, kap egy szürkét
+        const config = NODE_CONFIG[node.type] || { color: '#94a3b8' };
         const isLeaf = (node.type === 'Episodes' || node.type === 'Movie' || node.type === 'Chapter');
 
         const div = document.createElement('div');
@@ -458,10 +474,8 @@ window.renderTree = (container = document.getElementById('tree-container'), node
         const headerDiv = document.createElement('div');
         headerDiv.className = 'tree-header';
         
-        // ITT VAN A BAL OLDALI ÁRNYÉK ÉS SZEGÉLY LOGIKA
         headerDiv.style.borderLeft = `4px solid ${config.color}`;
         headerDiv.style.boxShadow = `-6px 0px 10px -4px ${config.color}`;
-        
         if(isLeaf) headerDiv.style.paddingLeft = '25px'; 
         
         headerDiv.innerHTML = `${toggleBtn}<span class="tree-text" style="color: ${config.color}" ondblclick="editTreeNode('${pathStr}')">${displayHTML}</span>${actionsHTML}`;
