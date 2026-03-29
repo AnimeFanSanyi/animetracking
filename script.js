@@ -2,8 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { 
     getAuth, 
     GoogleAuthProvider, 
-    signInWithRedirect,
-    getRedirectResult,
+    signInWithPopup,
     onAuthStateChanged, 
     signOut 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -78,7 +77,13 @@ onAuthStateChanged(auth, user => {
     }
 });
 
-document.getElementById('login-btn').onclick = () => signInWithRedirect(auth, provider);
+document.getElementById('login-btn').onclick = () => {
+    signInWithPopup(auth, provider).catch((error) => {
+        console.error("Login Error:", error);
+        alert("Sikertelen bejelentkezés: " + error.message);
+    });
+};
+
 document.getElementById('logout-btn').onclick = () => signOut(auth);
 
 async function loadUserData() {
@@ -305,7 +310,6 @@ window.cancelDelete = () => {
 
 // --- ARCHIVE: ADD / EDIT MODAL ---
 window.switchArchTab = (num) => {
-    // Itt volt a hiba, most már hozzáadja a gombokhoz is az active classt
     document.getElementById('archTab1').classList.toggle('active', num === 1);
     document.getElementById('archTab2').classList.toggle('active', num === 2);
     document.getElementById('arch-tab1-content').style.display = num === 1 ? 'block' : 'none';
@@ -481,7 +485,7 @@ window.renderTree = (container = document.getElementById('tree-container'), node
     });
 };
 
-// --- DRAG ÉS DROP (Teljesen megőrizve a javított változatot) ---
+// --- DRAG ÉS DROP ---
 let dragContext = null;
 
 window.addDragListeners = (headerDiv, nodeDiv, idx) => {
