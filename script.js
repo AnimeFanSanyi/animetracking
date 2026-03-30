@@ -26,11 +26,6 @@ const NODE_CONFIG = {
 // --- MOBILE DEBUGGER ---
 window.onerror = (msg, url, line) => alert(`Error: ${msg}\nLine: ${line}`);
 
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyCq7skNHlN6mF45b-TjqNyJJ-OBwGu5YBs",
@@ -316,7 +311,6 @@ window.cancelDelete = () => {
 
 // --- ARCHIVE: ADD / EDIT MODAL ---
 window.switchArchTab = (num) => {
-    // Itt volt a hiba, most már hozzáadja a gombokhoz is az active classt
     document.getElementById('archTab1').classList.toggle('active', num === 1);
     document.getElementById('archTab2').classList.toggle('active', num === 2);
     document.getElementById('arch-tab1-content').style.display = num === 1 ? 'block' : 'none';
