@@ -145,10 +145,11 @@
         </div>
     </div>
 
-    <div id="tree-node-selector-modal" class="modal" style="z-index: 300;">
-        <div class="modal-content" style="max-width: 300px; text-align: center;">
-            <h4 style="margin-top: 0; color: var(--accent);">Új elem típusa:</h4>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div id="tree-node-selector-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0; text-align:center;">Válassz típust</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                 <button onclick="addTreeNode('Season')" style="background: #312e81;">Season</button>
                 <button onclick="addTreeNode('Part')" style="background: #312e81;">Part</button>
                 <button onclick="addTreeNode('Arc')" style="background: #312e81;">Arc</button>
@@ -157,12 +158,16 @@
                 <button onclick="addTreeNode('Sequel-Anime')" style="background: #312e81;">Sequel-Anime</button>
                 <button onclick="addTreeNode('Manga')" style="background: #312e81;">Manga</button>
                 <button onclick="addTreeNode('Volume')" style="background: #312e81;">Volume</button>
-                <hr style="border-color: rgba(167, 139, 250, 0.2); width: 100%; margin: 5px 0;">
-                <button onclick="addTreeNode('Episodes')" style="background: #059669;">Episodes (Levél)</button>
-                <button onclick="addTreeNode('Movie')" style="background: #059669;">Movie (Levél)</button>
-                <button onclick="addTreeNode('Chapter')" style="background: #059669;">Chapter (Levél)</button>
+                
+                <hr style="grid-column: 1 / -1; border-color: rgba(167, 139, 250, 0.2); width: 100%; margin: 5px 0;">
+                
+                <button onclick="addTreeNode('Episodes')" style="background: #059669;">Episodes</button>
+                <button onclick="addTreeNode('Movie')" style="background: #059669;">Movie</button>
+                <button onclick="addTreeNode('Chapter')" style="background: #059669;">Chapter</button>
+                <button onclick="addTreeNode('OVA')" style="background: #059669;">OVA</button>
             </div>
-            <button onclick="closeTreeNodeSelector()" style="background: transparent; border: 1px solid #475569; margin-top: 15px;">Mégse</button>
+
+            <button onclick="closeTreeNodeSelector()" style="background: var(--card); border: 1px solid rgba(255,255,255,0.1); margin-top: 15px;">Mégse</button>
         </div>
     </div>
 
