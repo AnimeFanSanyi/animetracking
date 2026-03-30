@@ -125,3 +125,7 @@ input:focus { border-color: var(--accent); }
 }
 .overlay-content { width: 85%; max-width: 350px; }
 #random-result { font-size: 28px; font-weight: 800; color: var(--accent); margin-bottom: 30px; line-height: 1.2; text-shadow: 0 0 20px rgba(167, 139, 250, 0.5); }
+/* Típusválasztó modal mindig legfelülre kerüljön */
+#tree-node-selector-modal {
+    z-index: 2000;
+}
