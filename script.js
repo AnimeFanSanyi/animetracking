@@ -20,7 +20,8 @@ const NODE_CONFIG = {
     'Volume':      { color: '#a3e635' }, // Lime
     'Episodes':    { color: '#4ade80' }, // Green (Leaf)
     'Movie':       { color: '#eab308' }, // Gold (Leaf)
-    'Chapter':     { color: '#d97706' }  // Amber (Leaf)
+    'Chapter':     { color: '#d97706' }, // Amber (Leaf)
+    'OVA':         { color: '#10b981' }  // Emerald Green (Leaf)
 };
 
 // --- MOBILE DEBUGGER ---
@@ -104,7 +105,7 @@ async function sync() {
     }
 }
 
-// --- CUSTOM PROMPT (A megse gombok miatt fontos, hogy rendben legyen) ---
+// --- CUSTOM PROMPT ---
 window.openCustomPrompt = (title, defaultValue, callback) => {
     document.getElementById('custom-prompt-title').innerText = title;
     const input = document.getElementById('custom-prompt-input');
@@ -406,7 +407,7 @@ window.deleteArchSubItem = (category, index) => {
     renderArchSubItems();
 };
 
-// --- ARCHIVE: 2. FÜL LOGIKA (HIERARCHIA - BAL OLDALI SZÍNES ÁRNYÉKKAL) ---
+// --- ARCHIVE: 2. FÜL LOGIKA (HIERARCHIA) ---
 function getParentArrayAndIndex(pathStr) {
     if (pathStr === '') return { parentArray: currentArchiveItem.hierarchy, index: null };
     const parts = pathStr.split(',').map(Number);
@@ -435,8 +436,10 @@ window.renderTree = (container = document.getElementById('tree-container'), node
         const currentPath = [...path, idx];
         const pathStr = currentPath.join(',');
         
-        const config = NODE_CONFIG[node.type] || { color: '#94a3b8' }; // Ha nincs a listában, kap egy szürkét
-        const isLeaf = (node.type === 'Episodes' || node.type === 'Movie' || node.type === 'Chapter');
+        const config = NODE_CONFIG[node.type] || { color: '#94a3b8' };
+        
+        // HOZZÁADTUK AZ OVA-T MINT LEVÉL ELEM
+        const isLeaf = (node.type === 'Episodes' || node.type === 'Movie' || node.type === 'Chapter' || node.type === 'OVA');
 
         const div = document.createElement('div');
         div.className = 'tree-node';
@@ -448,6 +451,7 @@ window.renderTree = (container = document.getElementById('tree-container'), node
         if (node.type === 'Episodes') displayHTML = `📺 Epizódok: <strong style="color:white;">${node.value}</strong>`;
         else if (node.type === 'Movie') displayHTML = `🎬 Movie: <strong style="color:white;">${node.value}</strong>`;
         else if (node.type === 'Chapter') displayHTML = `📄 Chapter: <strong style="color:white;">${node.value}</strong>`;
+        else if (node.type === 'OVA') displayHTML = `💿 OVA: <strong style="color:white;">${node.value}</strong>`;
         else displayHTML = `📂 ${node.type}: <strong style="color:white;">${node.name}</strong>`;
 
         let actionsHTML = `<div class="tree-actions">`;
@@ -459,7 +463,6 @@ window.renderTree = (container = document.getElementById('tree-container'), node
         const headerDiv = document.createElement('div');
         headerDiv.className = 'tree-header';
         
-        // ITT VAN A BAL OLDALI ÁRNYÉK ÉS SZEGÉLY LOGIKA
         headerDiv.style.borderLeft = `4px solid ${config.color}`;
         headerDiv.style.boxShadow = `-6px 0px 10px -4px ${config.color}`;
         
@@ -486,7 +489,7 @@ window.renderTree = (container = document.getElementById('tree-container'), node
     });
 };
 
-// --- DRAG ÉS DROP (Teljesen megőrizve a javított változatot) ---
+// --- DRAG ÉS DROP ---
 let dragContext = null;
 
 window.addDragListeners = (headerDiv, nodeDiv, idx) => {
@@ -617,10 +620,13 @@ window.closeTreeNodeSelector = () => {
 
 window.addTreeNode = (type) => {
     closeTreeNodeSelector();
-    const isLeaf = (type === 'Episodes' || type === 'Movie' || type === 'Chapter');
+    // HOZZÁADTUK AZ OVA-T MINT LEVÉL ELEM
+    const isLeaf = (type === 'Episodes' || type === 'Movie' || type === 'Chapter' || type === 'OVA');
+    
     const promptTitle = type === 'Episodes' ? 'Epizód Number vagy Range (pl. 1 vagy 1-12):' : 
                         type === 'Movie' ? 'Film címe:' : 
-                        type === 'Chapter' ? 'Chapter Number vagy Range (pl. 1 vagy 1-12):' : `${type} neve:`;
+                        type === 'Chapter' ? 'Chapter Number vagy Range (pl. 1 vagy 1-12):' : 
+                        type === 'OVA' ? 'OVA címe vagy száma:' : `${type} neve:`;
     
     openCustomPrompt(promptTitle, "", (val) => {
         if (val && val.trim() !== '') {
@@ -642,7 +648,8 @@ window.addTreeNode = (type) => {
 window.editTreeNode = (pathStr) => {
     const { parentArray, index } = getParentArrayAndIndex(pathStr);
     const node = parentArray[index];
-    const isLeaf = (node.type === 'Episodes' || node.type === 'Movie' || node.type === 'Chapter');
+    // HOZZÁADTUK AZ OVA-T MINT LEVÉL ELEM
+    const isLeaf = (node.type === 'Episodes' || node.type === 'Movie' || node.type === 'Chapter' || node.type === 'OVA');
     const promptTitle = isLeaf ? `${node.type} módosítása:` : `${node.type} nevének módosítása:`;
     
     openCustomPrompt(promptTitle, isLeaf ? node.value : node.name, (newVal) => {
