@@ -26,6 +26,12 @@ const NODE_CONFIG = {
 // --- MOBILE DEBUGGER ---
 window.onerror = (msg, url, line) => alert(`Error: ${msg}\nLine: ${line}`);
 
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyCq7skNHlN6mF45b-TjqNyJJ-OBwGu5YBs",
   authDomain: "animetracker-171ba.firebaseapp.com",
@@ -35,6 +41,7 @@ const firebaseConfig = {
   appId: "1:1083378734621:web:531e2c1cab0c4ed1e918f4"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
