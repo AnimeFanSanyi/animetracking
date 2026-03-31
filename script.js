@@ -192,11 +192,11 @@ window.editItemPrompt = () => {
             else userData.watched[selectedItemIndex].name = newVal.trim();
             sync();
         }
+        closeOptions();
     });
-    closeOptions();
 };
 
-window.moveListItem = () => {
+window.toggleMoveItem = () => {
     if (currentTab === 'toWatch') {
         const item = userData.toWatch.splice(selectedItemIndex, 1)[0];
         userData.watched.unshift({ name: item, time: new Date().toLocaleString() });
@@ -230,6 +230,12 @@ window.render = () => {
     const searchTerms = searchInput.split(/\s+/).filter(t => t.length > 0); 
     container.innerHTML = '';
     
+    // Kezeljük az Import/Export gombok láthatóságát
+    const importExportContainer = document.getElementById('import-export-container');
+    if (importExportContainer) {
+        importExportContainer.style.display = currentTab === 'archive' ? 'none' : 'flex';
+    }
+
     let list = currentTab === 'toWatch' ? userData.toWatch : (currentTab === 'watched' ? userData.watched : userData.archive);
     
     document.getElementById('countTW').innerText = userData.toWatch.length;
@@ -239,34 +245,40 @@ window.render = () => {
     list.forEach((item, index) => {
         const name = currentTab === 'toWatch' ? item : item.name;
         
-        let searchableText = name.toLowerCase();
-        if (currentTab === 'archive') searchableText += ` #${item.type.toLowerCase()} ${item.status ? item.status.toLowerCase() : ''}`;
+        let match = true;
+        if (searchTerms.length > 0) {
+            const searchString = currentTab === 'archive' 
+                ? `${item.name} ${item.type} ${item.status}`.toLowerCase()
+                : name.toLowerCase();
+            match = searchTerms.every(term => searchString.includes(term));
+        }
 
-        if (searchTerms.length === 0 || searchTerms.every(term => searchableText.includes(term))) {
+        if (match) {
             const div = document.createElement('div');
             div.className = 'list-item';
-            const safeName = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
             
             if (currentTab === 'archive') {
-                const statusClass = item.status ? item.status.replace('#', '') : 'ended';
+                const typeColor = item.type === 'Manga' ? '#2dd4bf' : (item.type === 'StandaloneMovie' ? '#f59e0b' : '#38bdf8');
+                let statusColor = '#94a3b8';
+                if(item.status === '#ended') statusColor = '#f43f5e';
+                if(item.status === '#continue-sometime') statusColor = '#2dd4bf';
+                if(item.status === '#airing') statusColor = '#a3e635';
+
                 div.innerHTML = `
-                    <div style="flex: 1; display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
-                        <strong>${name}</strong>
-                        <span class="hashtag">#${item.type}</span>
-                        <span class="hashtag tag-${statusClass}">${item.status || '#ended'}</span>
-                    </div>
-                    <div style="display: flex; gap: 5px;">
-                        <button class="btn-icon" style="color: var(--accent);" onclick="openArchiveModal(${index})">✎</button>
-                        <button class="btn-icon" onclick="startDelete(${index})">🗑️</button>
+                    <div style="flex:1;" onclick="openArchiveModal(${index})">
+                        <div style="font-weight:bold; font-size: 16px;">${item.name}</div>
+                        <div style="margin-top: 5px; display:flex; gap: 5px; flex-wrap: wrap;">
+                            <span class="hashtag" style="color: ${typeColor}; border: 1px solid ${typeColor}; background: transparent;">#${item.type}</span>
+                            <span class="hashtag" style="color: ${statusColor}; background: rgba(255,255,255,0.05);">${item.status}</span>
+                        </div>
                     </div>
                 `;
             } else {
                 div.innerHTML = `
-                    <div style="flex: 1;">
-                        <strong>${name}</strong>
-                        ${currentTab === 'watched' ? `<br><small style="color: #94a3b8;">${item.time}</small>` : ''}
+                    <div style="flex: 1;" onclick="openOptions(${index}, '${name.replace(/'/g, "\\'")}')">
+                        <div style="font-weight: 500;">${name}</div>
+                        ${currentTab === 'watched' ? `<div class="date-text">${item.time}</div>` : ''}
                     </div>
-                    <button class="btn-options" onclick="openOptions(${index}, '${safeName}')">⋮</button>
                 `;
             }
             container.appendChild(div);
@@ -274,43 +286,7 @@ window.render = () => {
     });
 };
 
-// --- ARCHIVE: 3-LÉPCSŐS TÖRLÉS ---
-window.startDelete = (index) => {
-    deleteTargetIndex = index;
-    deleteStep = 0;
-    updateDeleteModal();
-    document.getElementById('delete-modal').style.display = 'flex';
-};
-
-window.updateDeleteModal = () => {
-    document.getElementById('delete-msg').innerText = deleteMessages[deleteStep];
-    const btn = document.getElementById('btn-confirm-delete');
-    if (deleteStep === 2) {
-        btn.innerText = "VÉGLEGES TÖRLÉS";
-        btn.style.boxShadow = "0 0 15px var(--danger)";
-    } else {
-        btn.innerText = "Tovább";
-        btn.style.boxShadow = "none";
-    }
-};
-
-window.processDeleteStep = () => {
-    deleteStep++;
-    if (deleteStep < 3) updateDeleteModal();
-    else {
-        userData.archive.splice(deleteTargetIndex, 1);
-        sync();
-        cancelDelete();
-    }
-};
-
-window.cancelDelete = () => {
-    document.getElementById('delete-modal').style.display = 'none';
-    deleteTargetIndex = -1;
-    deleteStep = 0;
-};
-
-// --- ARCHIVE: ADD / EDIT MODAL ---
+// --- ARCHIVE LOGIKA ---
 window.switchArchTab = (num) => {
     document.getElementById('archTab1').classList.toggle('active', num === 1);
     document.getElementById('archTab2').classList.toggle('active', num === 2);
@@ -320,7 +296,6 @@ window.switchArchTab = (num) => {
 
 window.openArchiveModal = (index = -1) => {
     switchArchTab(1);
-    
     if (index === -1) {
         isEditingArchive = false;
         editingArchiveIndex = -1;
@@ -329,284 +304,222 @@ window.openArchiveModal = (index = -1) => {
     } else {
         isEditingArchive = true;
         editingArchiveIndex = index;
-        currentArchiveItem = JSON.parse(JSON.stringify(userData.archive[index])); 
-        
+        currentArchiveItem = JSON.parse(JSON.stringify(userData.archive[index]));
         if(!currentArchiveItem.manga) currentArchiveItem.manga = [];
         if(!currentArchiveItem.ova) currentArchiveItem.ova = [];
         if(!currentArchiveItem.movie) currentArchiveItem.movie = [];
-        if(!currentArchiveItem.sequel) currentArchiveItem.sequel = []; 
+        if(!currentArchiveItem.sequel) currentArchiveItem.sequel = [];
         if(!currentArchiveItem.hierarchy) currentArchiveItem.hierarchy = [];
-        if(!currentArchiveItem.status) currentArchiveItem.status = '#ended'; 
+        if(!currentArchiveItem.status) currentArchiveItem.status = '#ended';
     }
-
+    
     document.getElementById('arch-name').value = currentArchiveItem.name;
     document.getElementById('arch-type').value = currentArchiveItem.type;
     document.getElementById('arch-status').value = currentArchiveItem.status;
     
     renderArchSubItems();
-    renderTree(); 
+    renderTree();
+    
+    document.getElementById('arch-delete-btn').style.display = isEditingArchive ? 'block' : 'none';
     document.getElementById('archive-modal').style.display = 'flex';
 };
 
-window.closeArchiveModal = () => {
-    document.getElementById('archive-modal').style.display = 'none';
-    currentArchiveItem = null;
-};
+window.closeArchiveModal = () => document.getElementById('archive-modal').style.display = 'none';
 
 window.saveArchiveItem = () => {
     const name = document.getElementById('arch-name').value.trim();
-    if (!name) return openCustomPrompt("Hiba", "A cím nem lehet üres!", () => {});
-
+    if (name === '') return alert("A Cím nem lehet üres!");
+    
     currentArchiveItem.name = name;
     currentArchiveItem.type = document.getElementById('arch-type').value;
     currentArchiveItem.status = document.getElementById('arch-status').value;
-
+    
     if (isEditingArchive) userData.archive[editingArchiveIndex] = currentArchiveItem;
     else userData.archive.unshift(currentArchiveItem);
-
+    
     sync();
     closeArchiveModal();
 };
 
-window.renderArchSubItems = () => {
-    const categories = ['manga', 'ova', 'movie', 'sequel']; 
-    categories.forEach(cat => {
-        const container = document.getElementById(`arch-${cat}-list`);
-        container.innerHTML = '';
-        currentArchiveItem[cat].forEach((subName, i) => {
-            const div = document.createElement('div');
-            div.className = 'sub-item';
-            div.innerHTML = `
-                <span title="Dupla kattintás a szerkesztéshez">${subName}</span>
-                <button class="btn-icon" onclick="deleteArchSubItem('${cat}', ${i})">🗑️</button>
-            `;
-            div.querySelector('span').ondblclick = () => {
-                openCustomPrompt(`${cat.toUpperCase()} szerkesztése:`, subName, (newVal) => {
-                    if (newVal && newVal.trim() !== '') {
-                        currentArchiveItem[cat][i] = newVal.trim();
-                        renderArchSubItems();
-                    }
-                });
-            };
-            container.appendChild(div);
-        });
+window.deleteArchiveItem = () => {
+    openCustomPrompt("Törlés megerősítése: Írd be 'Igen'", "", (val) => {
+        if(val && val.toLowerCase() === 'igen') {
+            userData.archive.splice(editingArchiveIndex, 1);
+            sync();
+            closeArchiveModal();
+        }
     });
 };
 
-window.openSubItemPrompt = (category) => {
-    openCustomPrompt(`${category.toUpperCase()} hozzáadása:`, "", (val) => {
+// --- SUB-ITEMS (Manga, OVA, Movie, Sequel) ---
+window.addArchSubItem = (type) => {
+    openCustomPrompt(`Új ${type.toUpperCase()} hozzáadása:`, "", (val) => {
         if (val && val.trim() !== '') {
-            currentArchiveItem[category].push(val.trim());
+            currentArchiveItem[type].push(val.trim());
             renderArchSubItems();
         }
     });
 };
 
-window.deleteArchSubItem = (category, index) => {
-    currentArchiveItem[category].splice(index, 1);
+window.removeArchSubItem = (type, index) => {
+    currentArchiveItem[type].splice(index, 1);
     renderArchSubItems();
 };
 
-// --- ARCHIVE: 2. FÜL LOGIKA (HIERARCHIA) ---
-function getParentArrayAndIndex(pathStr) {
-    if (pathStr === '') return { parentArray: currentArchiveItem.hierarchy, index: null };
-    const parts = pathStr.split(',').map(Number);
-    const index = parts.pop();
-    let curr = currentArchiveItem.hierarchy;
-    for (let i = 0; i < parts.length; i++) {
-        curr = curr[parts[i]].children;
-    }
-    return { parentArray: curr, index: index };
-}
+window.renderArchSubItems = () => {
+    const container = document.getElementById('arch-subitems-container');
+    container.innerHTML = '';
+    const types = [
+        { key: 'manga', label: 'Manga', color: '#2dd4bf' },
+        { key: 'ova', label: 'OVA', color: '#f472b6' },
+        { key: 'movie', label: 'Movie', color: '#f59e0b' },
+        { key: 'sequel', label: 'Sequel', color: '#38bdf8' }
+    ];
+
+    types.forEach(t => {
+        if (currentArchiveItem[t.key] && currentArchiveItem[t.key].length > 0) {
+            currentArchiveItem[t.key].forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = 'sub-item';
+                div.innerHTML = `
+                    <span><span style="color: ${t.color}; font-weight: bold; margin-right:5px;">[${t.label}]</span> ${item}</span>
+                    <button class="btn-icon" onclick="removeArchSubItem('${t.key}', ${idx})">❌</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+    });
+};
+
+// --- HIERARCHY TREE LOGIC ---
+const getParentArrayAndIndex = (pathStr) => {
+    if (pathStr === '') return { parentArray: currentArchiveItem.hierarchy, index: -1 };
+    const path = pathStr.split(',').map(Number);
+    let currentArray = currentArchiveItem.hierarchy;
+    for (let i = 0; i < path.length - 1; i++) currentArray = currentArray[path[i]].children;
+    return { parentArray: currentArray, index: path[path.length - 1] };
+};
+
+window.renderTree = () => {
+    const container = document.getElementById('tree-container');
+    let totalCount = 0;
+
+    const countNodes = (nodes) => {
+        nodes.forEach(n => {
+            totalCount++;
+            if (n.children) countNodes(n.children);
+        });
+    };
+    countNodes(currentArchiveItem.hierarchy);
+    document.getElementById('arch-hier-count').innerText = totalCount;
+
+    const buildTreeHTML = (nodes = currentArchiveItem.hierarchy, path = []) => {
+        container.innerHTML = '';
+        if (nodes.length === 0 && path.length === 0) {
+            container.innerHTML = '<p style="color:var(--text-muted); text-align:center; font-size: 13px;">A hierarchia üres. Adj hozzá egy Fő elemet!</p>';
+            return;
+        }
+
+        nodes.forEach((node, idx) => {
+            const currentPath = [...path, idx];
+            const pathStr = currentPath.join(',');
+            const config = NODE_CONFIG[node.type] || { color: '#94a3b8' };
+            
+            const isLeaf = (node.type === 'Episodes' || node.type === 'Movie' || node.type === 'Chapter' || node.type === 'OVA');
+            
+            const div = document.createElement('div');
+            div.className = 'tree-node';
+            
+            let toggleBtn = isLeaf 
+                ? '<span style="width:23px; display:inline-block;"></span>' 
+                : `<button class="btn-icon tree-toggle" style="margin-right: 5px; font-size: 12px; width: 20px; padding: 0; color: var(--accent);" onclick="toggleTreeNode('${pathStr}')">${node.isExpanded ? '▼' : '▶'}</button>`;
+            
+            let displayHTML = '';
+            if (node.type === 'Episodes') displayHTML = `📺 Epizódok: <strong style="color:white;">${node.value}</strong>`;
+            else if (node.type === 'Movie') displayHTML = `🎬 Movie: <strong style="color:white;">${node.value}</strong>`;
+            else if (node.type === 'Chapter') displayHTML = `📖 Chapter: <strong style="color:white;">${node.value}</strong>`;
+            else if (node.type === 'OVA') displayHTML = `📀 OVA: <strong style="color:white;">${node.value}</strong>`;
+            else displayHTML = `${node.name}`;
+
+            let headerHTML = `
+                <div class="tree-header" id="header-${pathStr}" style="border-left: 3px solid ${config.color};">
+                    <div style="display:flex; align-items:center; flex:1;">
+                        ${path.length === 0 ? `<div class="drag-handle" onpointerdown="startDrag(event, this.parentElement.parentElement, ${idx})">≡</div>` : ''}
+                        ${toggleBtn}
+                        <span class="hashtag" style="margin-right: 8px; color: ${config.color}; border: 1px solid ${config.color}; background: transparent;">${node.type}</span>
+                        <div class="tree-text" onclick="editTreeNode('${pathStr}')">${displayHTML}</div>
+                    </div>
+                    <div class="tree-actions">
+                        ${!isLeaf ? `<button class="btn-icon" onclick="openTreeNodeSelector('${pathStr}')" style="color: var(--success);">➕</button>` : ''}
+                        <button class="btn-icon" onclick="deleteTreeNode('${pathStr}')" style="color: var(--danger);">❌</button>
+                    </div>
+                </div>
+            `;
+            
+            div.innerHTML = headerHTML;
+
+            if (!isLeaf && node.children && node.children.length > 0) {
+                const childrenDiv = document.createElement('div');
+                childrenDiv.className = 'tree-children';
+                childrenDiv.style.display = node.isExpanded ? 'block' : 'none';
+                
+                const buildChildren = (children, currentPathStr, parentDiv) => {
+                    children.forEach((child, cIdx) => {
+                        const childPathStr = currentPathStr + ',' + cIdx;
+                        const childConfig = NODE_CONFIG[child.type] || { color: '#94a3b8' };
+                        const childIsLeaf = (child.type === 'Episodes' || child.type === 'Movie' || child.type === 'Chapter' || child.type === 'OVA');
+                        
+                        const cDiv = document.createElement('div');
+                        cDiv.className = 'tree-node';
+                        
+                        let cToggleBtn = childIsLeaf 
+                            ? '<span style="width:23px; display:inline-block;"></span>' 
+                            : `<button class="btn-icon tree-toggle" style="margin-right: 5px; font-size: 12px; width: 20px; padding: 0; color: var(--accent);" onclick="toggleTreeNode('${childPathStr}')">${child.isExpanded ? '▼' : '▶'}</button>`;
+                        
+                        let cDisplayHTML = '';
+                        if (child.type === 'Episodes') cDisplayHTML = `📺 Epizódok: <strong style="color:white;">${child.value}</strong>`;
+                        else if (child.type === 'Movie') cDisplayHTML = `🎬 Movie: <strong style="color:white;">${child.value}</strong>`;
+                        else if (child.type === 'Chapter') cDisplayHTML = `📖 Chapter: <strong style="color:white;">${child.value}</strong>`;
+                        else if (child.type === 'OVA') cDisplayHTML = `📀 OVA: <strong style="color:white;">${child.value}</strong>`;
+                        else cDisplayHTML = `${child.name}`;
+
+                        let cHeaderHTML = `
+                            <div class="tree-header" id="header-${childPathStr}" style="border-left: 3px solid ${childConfig.color};">
+                                <div style="display:flex; align-items:center; flex:1;">
+                                    ${cToggleBtn}
+                                    <span class="hashtag" style="margin-right: 8px; color: ${childConfig.color}; border: 1px solid ${childConfig.color}; background: transparent;">${child.type}</span>
+                                    <div class="tree-text" onclick="editTreeNode('${childPathStr}')">${cDisplayHTML}</div>
+                                </div>
+                                <div class="tree-actions">
+                                    ${!childIsLeaf ? `<button class="btn-icon" onclick="openTreeNodeSelector('${childPathStr}')" style="color: var(--success);">➕</button>` : ''}
+                                    <button class="btn-icon" onclick="deleteTreeNode('${childPathStr}')" style="color: var(--danger);">❌</button>
+                                </div>
+                            </div>
+                        `;
+                        cDiv.innerHTML = cHeaderHTML;
+                        parentDiv.appendChild(cDiv);
+
+                        if (!childIsLeaf && child.children && child.children.length > 0) {
+                            const subChildrenDiv = document.createElement('div');
+                            subChildrenDiv.className = 'tree-children';
+                            subChildrenDiv.style.display = child.isExpanded ? 'block' : 'none';
+                            buildChildren(child.children, childPathStr, subChildrenDiv);
+                            cDiv.appendChild(subChildrenDiv);
+                        }
+                    });
+                };
+                buildChildren(node.children, pathStr, childrenDiv);
+                div.appendChild(childrenDiv);
+            }
+            container.appendChild(div);
+        });
+    };
+    buildTreeHTML();
+};
 
 window.toggleTreeNode = (pathStr) => {
     const { parentArray, index } = getParentArrayAndIndex(pathStr);
     parentArray[index].isExpanded = !parentArray[index].isExpanded;
-    renderTree();
-};
-
-window.renderTree = (container = document.getElementById('tree-container'), nodes = currentArchiveItem.hierarchy, path = []) => {
-    container.innerHTML = '';
-    if (nodes.length === 0 && path.length === 0) {
-        container.innerHTML = '<p style="color:var(--text-muted); text-align:center; font-size: 13px;">A hierarchia üres. Adj hozzá egy Fő elemet!</p>';
-        return;
-    }
-
-    nodes.forEach((node, idx) => {
-        const currentPath = [...path, idx];
-        const pathStr = currentPath.join(',');
-        
-        const config = NODE_CONFIG[node.type] || { color: '#94a3b8' };
-        
-        // HOZZÁADTUK AZ OVA-T MINT LEVÉL ELEM
-        const isLeaf = (node.type === 'Episodes' || node.type === 'Movie' || node.type === 'Chapter' || node.type === 'OVA');
-
-        const div = document.createElement('div');
-        div.className = 'tree-node';
-
-        let toggleBtn = isLeaf ? '<span style="width:23px; display:inline-block;"></span>' : 
-            `<button class="btn-icon tree-toggle" style="margin-right: 5px; font-size: 12px; width: 20px; padding: 0; color: var(--accent);" onclick="toggleTreeNode('${pathStr}')">${node.isExpanded ? '▼' : '▶'}</button>`;
-
-        let displayHTML = '';
-        if (node.type === 'Episodes') displayHTML = `📺 Epizódok: <strong style="color:white;">${node.value}</strong>`;
-        else if (node.type === 'Movie') displayHTML = `🎬 Movie: <strong style="color:white;">${node.value}</strong>`;
-        else if (node.type === 'Chapter') displayHTML = `📄 Chapter: <strong style="color:white;">${node.value}</strong>`;
-        else if (node.type === 'OVA') displayHTML = `💿 OVA: <strong style="color:white;">${node.value}</strong>`;
-        else displayHTML = `📂 ${node.type}: <strong style="color:white;">${node.name}</strong>`;
-
-        let actionsHTML = `<div class="tree-actions">`;
-        if (!isLeaf) {
-            actionsHTML += `<button class="btn-icon" style="color: ${config.color}; font-weight: bold;" onclick="openTreeNodeSelector('${pathStr}')">＋</button>`;
-        }
-        actionsHTML += `<button class="btn-icon" style="color: ${config.color}; font-weight: bold;" onclick="deleteTreeNode('${pathStr}')">✕</button></div>`;
-
-        const headerDiv = document.createElement('div');
-        headerDiv.className = 'tree-header';
-        
-        headerDiv.style.borderLeft = `4px solid ${config.color}`;
-        headerDiv.style.boxShadow = `-6px 0px 10px -4px ${config.color}`;
-        
-        if(isLeaf) headerDiv.style.paddingLeft = '25px'; 
-        
-        headerDiv.innerHTML = `${toggleBtn}<span class="tree-text" style="color: ${config.color}" ondblclick="editTreeNode('${pathStr}')">${displayHTML}</span>${actionsHTML}`;
-
-        if (path.length === 0) {
-            div.classList.add('root-node');
-            div.setAttribute('data-root-index', idx);
-            addDragListeners(headerDiv, div, idx);
-        }
-
-        div.appendChild(headerDiv);
-
-        if (!isLeaf && node.children && node.children.length > 0) {
-            const childrenContainer = document.createElement('div');
-            childrenContainer.className = 'tree-children';
-            childrenContainer.style.display = node.isExpanded ? 'block' : 'none';
-            renderTree(childrenContainer, node.children, currentPath);
-            div.appendChild(childrenContainer);
-        }
-        container.appendChild(div);
-    });
-};
-
-// --- DRAG ÉS DROP ---
-let dragContext = null;
-
-window.addDragListeners = (headerDiv, nodeDiv, idx) => {
-    let pressTimer = null;
-    let startY = 0; let startX = 0;
-
-    headerDiv.style.touchAction = 'pan-y';
-
-    headerDiv.addEventListener('pointerdown', (e) => {
-        if (e.button !== 0 && e.pointerType === 'mouse') return;
-        startX = e.clientX; startY = e.clientY;
-        pressTimer = setTimeout(() => {
-            if (navigator.vibrate) navigator.vibrate(50);
-            initDrag(e, nodeDiv, idx);
-        }, 500);
-    });
-
-    const cancelPress = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
-    const checkMovement = (e) => {
-        if (pressTimer && (Math.abs(e.clientY - startY) > 15 || Math.abs(e.clientX - startX) > 15)) cancelPress();
-    };
-
-    headerDiv.addEventListener('pointerup', cancelPress);
-    headerDiv.addEventListener('pointercancel', cancelPress);
-    headerDiv.addEventListener('pointermove', checkMovement);
-};
-
-window.initDrag = (e, element, index) => {
-    const container = document.getElementById('tree-container');
-    container.style.position = 'relative';
-    document.body.style.touchAction = 'none';
-    document.body.style.overflow = 'hidden';
-    window.preventTouchScroll = function(event) { event.preventDefault(); };
-    document.addEventListener('touchmove', window.preventTouchScroll, { passive: false });
-
-    const nodeData = currentArchiveItem.hierarchy[index];
-    if (nodeData.children && nodeData.children.length > 0) {
-        nodeData.isExpanded = false;
-        const childrenDiv = element.querySelector('.tree-children');
-        if (childrenDiv) childrenDiv.style.display = 'none';
-        const toggleBtn = element.querySelector('.tree-toggle');
-        if (toggleBtn) toggleBtn.innerText = '▶';
-    }
-
-    const rect = element.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-    const placeholder = document.createElement('div');
-    placeholder.className = 'tree-node drag-placeholder';
-    placeholder.style.height = `${rect.height}px`;
-    element.before(placeholder);
-
-    element.style.position = 'absolute';
-    element.style.top = `${rect.top - containerRect.top + container.scrollTop}px`;
-    element.style.left = `0px`;
-    element.style.width = `100%`;
-    element.style.zIndex = '1000';
-    element.style.pointerEvents = 'none';
-    element.classList.add('dragging');
-
-    dragContext = { element, placeholder, startIndex: index, offsetY: e.clientY - rect.top };
-    document.getElementById('archive-modal').querySelector('.modal-content').style.overflow = 'hidden';
-
-    document.addEventListener('pointermove', handleDragMove, {passive: false});
-    document.addEventListener('pointerup', handleDragEnd);
-    document.addEventListener('pointercancel', handleDragEnd);
-};
-
-window.handleDragMove = (e) => {
-    if (!dragContext) return;
-    e.preventDefault();
-    const container = document.getElementById('tree-container');
-    const containerRect = container.getBoundingClientRect();
-    let y = e.clientY - containerRect.top + container.scrollTop - dragContext.offsetY;
-    dragContext.element.style.top = `${y}px`;
-
-    const nodes = Array.from(container.children).filter(c => 
-        (c.classList.contains('root-node') || c.classList.contains('drag-placeholder')) && !c.classList.contains('dragging')
-    );
-    const elemBelow = document.elementFromPoint(containerRect.left + (containerRect.width / 2), e.clientY);
-
-    if (elemBelow) {
-        const closestRootNode = elemBelow.closest('.tree-node.root-node');
-        if (closestRootNode && closestRootNode !== dragContext.placeholder) {
-            const placeholderIdx = nodes.indexOf(dragContext.placeholder);
-            const hoverIdx = nodes.indexOf(closestRootNode);
-            if (hoverIdx > placeholderIdx) closestRootNode.after(dragContext.placeholder);
-            else closestRootNode.before(dragContext.placeholder);
-        }
-    }
-};
-
-window.handleDragEnd = (e) => {
-    if (!dragContext) return;
-    document.removeEventListener('pointermove', handleDragMove);
-    document.removeEventListener('pointerup', handleDragEnd);
-    document.removeEventListener('pointercancel', handleDragEnd);
-    document.body.style.touchAction = '';
-    document.body.style.overflow = '';
-    document.removeEventListener('touchmove', window.preventTouchScroll);
-    document.getElementById('archive-modal').querySelector('.modal-content').style.overflow = 'auto';
-
-    const container = document.getElementById('tree-container');
-    const nodes = Array.from(container.children).filter(c => 
-        (c.classList.contains('root-node') || c.classList.contains('drag-placeholder')) && !c.classList.contains('dragging')
-    );
-
-    const finalOrderIndices = [];
-    nodes.forEach(n => {
-        if (n === dragContext.placeholder) finalOrderIndices.push(dragContext.startIndex);
-        else if (n.hasAttribute('data-root-index')) finalOrderIndices.push(parseInt(n.getAttribute('data-root-index')));
-    });
-
-    currentArchiveItem.hierarchy = finalOrderIndices.map(i => currentArchiveItem.hierarchy[i]);
-    dragContext.element.style = '';
-    dragContext.element.classList.remove('dragging');
-    dragContext.placeholder.remove();
-    dragContext = null;
     renderTree();
 };
 
@@ -616,18 +529,19 @@ window.openTreeNodeSelector = (pathStr) => {
 };
 window.closeTreeNodeSelector = () => {
     document.getElementById('tree-node-selector-modal').style.display = 'none';
+    targetTreePath = '';
 };
 
 window.addTreeNode = (type) => {
     closeTreeNodeSelector();
-    // HOZZÁADTUK AZ OVA-T MINT LEVÉL ELEM
     const isLeaf = (type === 'Episodes' || type === 'Movie' || type === 'Chapter' || type === 'OVA');
     
-    const promptTitle = type === 'Episodes' ? 'Epizód Number vagy Range (pl. 1 vagy 1-12):' : 
-                        type === 'Movie' ? 'Film címe:' : 
-                        type === 'Chapter' ? 'Chapter Number vagy Range (pl. 1 vagy 1-12):' : 
-                        type === 'OVA' ? 'OVA címe vagy száma:' : `${type} neve:`;
-    
+    let promptTitle = type === 'Episodes' ? 'Epizód Number vagy Range (pl. 1 vagy 1-12):' :
+                      type === 'Movie' ? 'Film címe:' :
+                      type === 'Chapter' ? 'Chapter Number vagy Range (pl. 1 vagy 1-15):' :
+                      type === 'OVA' ? 'OVA címe vagy Epizód száma:' :
+                      `${type} Neve:`;
+
     openCustomPrompt(promptTitle, "", (val) => {
         if (val && val.trim() !== '') {
             const newNode = isLeaf 
@@ -648,7 +562,6 @@ window.addTreeNode = (type) => {
 window.editTreeNode = (pathStr) => {
     const { parentArray, index } = getParentArrayAndIndex(pathStr);
     const node = parentArray[index];
-    // HOZZÁADTUK AZ OVA-T MINT LEVÉL ELEM
     const isLeaf = (node.type === 'Episodes' || node.type === 'Movie' || node.type === 'Chapter' || node.type === 'OVA');
     const promptTitle = isLeaf ? `${node.type} módosítása:` : `${node.type} nevének módosítása:`;
     
@@ -663,6 +576,240 @@ window.editTreeNode = (pathStr) => {
 
 window.deleteTreeNode = (pathStr) => {
     const { parentArray, index } = getParentArrayAndIndex(pathStr);
-    parentArray.splice(index, 1);
-    renderTree();
+    const node = parentArray[index];
+    
+    const performDelete = () => {
+        parentArray.splice(index, 1);
+        renderTree();
+        deleteTargetIndex = -1;
+        deleteStep = 0;
+    };
+
+    if (node.children && node.children.length > 0) {
+        deleteTargetIndex = index;
+        deleteStep = 0;
+        
+        const ask = () => {
+            if (deleteStep >= deleteMessages.length) {
+                performDelete();
+            } else {
+                openCustomPrompt(`${deleteMessages[deleteStep]} (Írd be: Igen)`, "", (val) => {
+                    if (val && val.toLowerCase() === 'igen') {
+                        deleteStep++;
+                        ask();
+                    } else {
+                        deleteTargetIndex = -1;
+                        deleteStep = 0;
+                    }
+                });
+            }
+        };
+        ask();
+    } else {
+        openCustomPrompt(`Biztosan törlöd ezt az elemet: ${node.name || node.value || node.type}? (Írd be: Igen)`, "", (val) => {
+            if (val && val.toLowerCase() === 'igen') performDelete();
+        });
+    }
+};
+
+// --- DRAG & DROP MOBILRA ---
+window.startDrag = (e, element, index) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    
+    const headerDiv = element.querySelector('.tree-header');
+    if (!headerDiv) return;
+
+    let holdTimer;
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    const cancelPress = () => {
+        clearTimeout(holdTimer);
+        headerDiv.removeEventListener('pointerup', cancelPress);
+        headerDiv.removeEventListener('pointercancel', cancelPress);
+        headerDiv.removeEventListener('pointermove', checkMovement);
+    };
+
+    holdTimer = setTimeout(() => {
+        cancelPress();
+        initDrag(e, element, index);
+    }, 200);
+
+    const checkMovement = (e) => {
+        if ((Math.abs(e.clientY - startY) > 15 || Math.abs(e.clientX - startX) > 15)) cancelPress();
+    };
+
+    headerDiv.addEventListener('pointerup', cancelPress);
+    headerDiv.addEventListener('pointercancel', cancelPress);
+    headerDiv.addEventListener('pointermove', checkMovement);
+};
+
+window.initDrag = (e, element, index) => {
+    const container = document.getElementById('tree-container');
+    container.style.position = 'relative';
+    document.body.style.touchAction = 'none';
+    document.body.style.overflow = 'hidden';
+
+    window.preventTouchScroll = function(event) { event.preventDefault(); };
+    document.addEventListener('touchmove', window.preventTouchScroll, { passive: false });
+
+    const nodeData = currentArchiveItem.hierarchy[index];
+    if (nodeData.children && nodeData.children.length > 0) {
+        nodeData.isExpanded = false;
+        const childrenDiv = element.querySelector('.tree-children');
+        if (childrenDiv) childrenDiv.style.display = 'none';
+        const toggleBtn = element.querySelector('.tree-toggle');
+        if (toggleBtn) toggleBtn.innerText = '▶';
+    }
+
+    const rect = element.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    const placeholder = document.createElement('div');
+    placeholder.className = 'drag-placeholder';
+    placeholder.style.height = `${rect.height}px`;
+    element.parentNode.insertBefore(placeholder, element);
+
+    element.style.position = 'absolute';
+    element.style.zIndex = '9000';
+    element.style.width = `${rect.width}px`;
+    element.style.boxShadow = '0 10px 20px rgba(0,0,0,0.5)';
+    element.style.opacity = '0.9';
+    element.style.left = `${rect.left - containerRect.left}px`;
+    element.style.top = `${rect.top - containerRect.top + container.scrollTop}px`;
+    element.classList.add('dragging');
+
+    let startY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+    let currentY = startY;
+    let initialTop = parseFloat(element.style.top);
+
+    const onMove = (moveEvent) => {
+        moveEvent.preventDefault();
+        const clientY = moveEvent.clientY || (moveEvent.touches ? moveEvent.touches[0].clientY : 0);
+        const deltaY = clientY - startY;
+        element.style.top = `${initialTop + deltaY}px`;
+        currentY = clientY;
+
+        const siblings = Array.from(container.children).filter(c => c !== element && c.classList.contains('tree-node'));
+        let targetSibling = null;
+
+        for (let sibling of siblings) {
+            const sibRect = sibling.getBoundingClientRect();
+            if (currentY > sibRect.top && currentY < sibRect.bottom) {
+                targetSibling = sibling;
+                break;
+            }
+        }
+
+        if (targetSibling) {
+            const sibRect = targetSibling.getBoundingClientRect();
+            if (currentY < sibRect.top + sibRect.height / 2) {
+                container.insertBefore(placeholder, targetSibling);
+            } else {
+                container.insertBefore(placeholder, targetSibling.nextSibling);
+            }
+        }
+    };
+
+    const onEnd = () => {
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('pointerup', onEnd);
+        document.removeEventListener('touchend', onEnd);
+        document.removeEventListener('touchmove', window.preventTouchScroll);
+        
+        document.body.style.touchAction = '';
+        document.body.style.overflow = '';
+        container.style.position = '';
+
+        element.style.position = '';
+        element.style.zIndex = '';
+        element.style.width = '';
+        element.style.boxShadow = '';
+        element.style.opacity = '';
+        element.style.left = '';
+        element.style.top = '';
+        element.classList.remove('dragging');
+
+        const siblings = Array.from(container.children).filter(c => c.classList.contains('tree-node') || c.classList.contains('drag-placeholder'));
+        const newIndex = siblings.indexOf(placeholder);
+        
+        let actualNewIndex = newIndex;
+        if (newIndex > index) actualNewIndex--;
+
+        if (actualNewIndex !== index && actualNewIndex >= 0) {
+            const item = currentArchiveItem.hierarchy.splice(index, 1)[0];
+            currentArchiveItem.hierarchy.splice(actualNewIndex, 0, item);
+        }
+
+        placeholder.remove();
+        renderTree();
+    };
+
+    document.addEventListener('pointermove', onMove, { passive: false });
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('pointerup', onEnd);
+    document.addEventListener('touchend', onEnd);
+};
+
+// --- IMPORT / EXPORT FUNKCIÓK ---
+window.exportList = () => {
+    if (currentTab === 'archive') return;
+    
+    const list = currentTab === 'toWatch' ? userData.toWatch : userData.watched.map(item => item.name);
+    if (list.length === 0) return alert("A lista üres, nincs mit exportálni!");
+    
+    const content = list.join('\n');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `animetracker_${currentTab}_list.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+};
+
+window.importList = () => {
+    if (currentTab === 'archive') return;
+    document.getElementById('importFileInput').click();
+};
+
+window.handleImportFile = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const lines = e.target.result.split(/\r?\n/);
+        let addedCount = 0;
+        
+        const currentListNames = currentTab === 'toWatch' 
+            ? userData.toWatch.map(n => n.toLowerCase()) 
+            : userData.watched.map(item => item.name.toLowerCase());
+
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            if (trimmed !== '') {
+                const lower = trimmed.toLowerCase();
+                if (!currentListNames.includes(lower)) {
+                    if (currentTab === 'toWatch') {
+                        userData.toWatch.push(trimmed); 
+                    } else {
+                        userData.watched.unshift({ name: trimmed, time: new Date().toLocaleString() });
+                    }
+                    currentListNames.push(lower);
+                    addedCount++;
+                }
+            }
+        });
+        
+        document.getElementById('importFileInput').value = ''; 
+        if (addedCount > 0) {
+            sync(); 
+            alert(`${addedCount} új elem sikeresen importálva a ${currentTab} listába!`);
+        } else {
+            alert("Nem volt új elem az importált fájlban (minden elem már szerepel a listán, vagy a fájl üres).");
+        }
+    };
+    reader.readAsText(file);
 };
